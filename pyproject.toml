@@ -1,0 +1,30 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "luciole-toolbox"
+version = "0.1.0"
+description = ""
+readme = "README.md"
+requires-python = ">=3.9"
+license = "MIT"
+authors = [
+    { name = "Kim Biloni", email = "kim.biloni@infofauna.ch" },
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/luciole_toolbox"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
