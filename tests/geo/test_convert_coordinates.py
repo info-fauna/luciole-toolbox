@@ -71,3 +71,93 @@ def test_convert_coordinates_unresolvable_source_returns_none(cx, cy):
 def test_convert_coordinates_invalid_target_raises():
     with pytest.raises(ValueError):
         convert_coordinates(46.385018, 8.044591, target=CRSType.WGS84)
+
+
+@pytest.mark.parametrize(
+    "cx, cy, source, target, expected",
+    [
+        ("646614.59", "137252.17", CRSType.LV03, CRSType.LV95, (2646614.59, 1137252.17)),
+        (2646614.59, 1137252.17, CRSType.LV95, CRSType.LV03, (646614.59, 137252.17)),
+        ("646'614.59", "137'252.17", CRSType.LV03, CRSType.LV95, (2646614.59, 1137252.17)),
+    ],
+    ids=["lv03-to-lv95", "lv95-to-lv03", "lv03-thousand-separators"],
+)
+def test_convert_coordinates_lv03_lv95_offset(cx, cy, source, target, expected):
+    result = convert_coordinates(cx, cy, target=target, source=source)
+    assert result == pytest.approx(expected)
+
+
+@pytest.mark.parametrize(
+    "cx, cy, source, target",
+    [
+        (646614.59, 137252.17, CRSType.LV03, CRSType.LV03),
+        (2646614.59, 1137252.17, CRSType.LV95, CRSType.LV95),
+    ],
+    ids=["lv03-identity", "lv95-identity"],
+)
+def test_convert_coordinates_lv_identity(cx, cy, source, target):
+    assert convert_coordinates(cx, cy, target=target, source=source) == pytest.approx((cx, cy))
+
+
+@pytest.mark.parametrize(
+    "cx, cy",
+    [
+        (None, "137252.17"),
+        ("646614.59", None),
+        ("", ""),
+        ("impossible", "137252.17"),
+    ],
+    ids=["cx-none", "cy-none", "both-empty", "cx-non-numeric"],
+)
+def test_convert_coordinates_lv_invalid_input_returns_none(cx, cy):
+    assert convert_coordinates(cx, cy, target=CRSType.LV95, source=CRSType.LV03) is None
+
+
+# Reference values below are ported verbatim from misc/test_coords_convert.py
+# ("les test cases sont corrects et ont ete testes sur Swisstopo"). They are
+# kept as-is, not adjusted to whatever this implementation currently
+# produces.
+
+
+@pytest.mark.parametrize(
+    "lat, lon, expected",
+    [
+        (46.427166, 6.101633, (497230.71744352573, 142635.17078830715)),
+        (46.481388, 6.113611, (498253.2532867866, 148646.26374590577)),
+    ],
+    ids=["point-1", "point-2"],
+)
+def test_convert_coordinates_wgs84_to_lv03_reference(lat, lon, expected):
+    result = convert_coordinates(lat, lon, target=CRSType.LV03)
+    assert result == pytest.approx(expected, rel=1e-5)
+
+
+@pytest.mark.parametrize(
+    "x, y, expected",
+    [
+        (497230.717, 142635.171, (2497230.717, 1142635.171)),
+        (498253.253, 148646.264, (2498253.253, 1148646.264)),
+    ],
+    ids=["point-1", "point-2"],
+)
+def test_convert_coordinates_lv03_to_lv95_reference(x, y, expected):
+    result = convert_coordinates(x, y, target=CRSType.LV95, source=CRSType.LV03)
+    assert result == pytest.approx(expected, rel=1e-5)
+
+
+@pytest.mark.xfail(
+    reason="convert_coordinates only supports LV03/LV95 as target; "
+    "LV95/LV03 -> WGS84 (inverse formula) is not implemented yet",
+    strict=True,
+)
+@pytest.mark.parametrize(
+    "x, y, expected",
+    [
+        (2583097.5, 1212273.0, (47.06126180135882, 7.216140286519122)),
+        (2617741.6, 1268431.6, (47.56635386221054, 7.6743795649086755)),
+    ],
+    ids=["point-1", "point-2"],
+)
+def test_convert_coordinates_lv95_to_wgs84_reference(x, y, expected):
+    result = convert_coordinates(x, y, target=CRSType.WGS84, source=CRSType.LV95)
+    assert result == pytest.approx(expected, rel=1e-5)

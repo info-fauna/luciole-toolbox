@@ -94,3 +94,43 @@ def test_get_CRS_planar_not_yet_supported(cx, cy):
 )
 def test_get_CRS_invalid_input(cx, cy):
     assert get_CRS(cx, cy) is None
+
+
+# Real-world input is entered by hand, copy-pasted from maps/GPS units/phones,
+# or exported by varied tools - the cases below are all plausible variants a
+# user could type.
+
+
+@pytest.mark.parametrize(
+    "cx, cy",
+    [
+        ("46° 23.101′ N", "8° 02.667′ E"),
+        ("46° 23′ 06.06″ n", "8° 02′ 40.53″ e"),
+        (46.385018, "8° 02′ 40.53″ E"),
+        (" 46.385018 ", "\t8.044591\t"),
+        ("+46.385018", "+8.044591"),
+        ("46°23′06.06″N", "8°02′40.53″E"),
+        ("46,385018", "8,044591"),
+        ("46.385018°", "8.044591°"),
+        ("46.385018°N", "8.044591°E"),
+        ("46.385018N", "8.044591E"),
+        ("N 46° 23′ 06.06″", "E 8° 02′ 40.53″"),
+        ("46° 23′ 06,06″ N", "8° 02′ 40,53″ E"),
+    ],
+    ids=[
+        "decimal-minutes-no-seconds",
+        "lowercase-hemisphere",
+        "mixed-decimal-and-dms-columns",
+        "padded-whitespace",
+        "explicit-plus-sign",
+        "unicode-dms-no-spaces",
+        "comma-decimal-separator",
+        "stray-degree-symbol-no-hemisphere",
+        "degree-symbol-and-hemisphere-no-minutes-seconds",
+        "hemisphere-glued-no-degree-symbol",
+        "prefix-hemisphere",
+        "comma-decimal-seconds-in-dms",
+    ],
+)
+def test_get_CRS_diverse_formats(cx, cy):
+    assert get_CRS(cx, cy) == CRSType.WGS84

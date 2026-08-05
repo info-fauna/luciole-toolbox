@@ -47,31 +47,49 @@ class CRSType(Enum):
 _LAT_RANGE = (45.0, 48.5)
 _LON_RANGE = (4.5, 11.5)
 
+_NUMBER = r"\d+(?:[.,]\d+)?"
+
+# Hemisphere may be a prefix ("N 46...") or a suffix ("...46 N"), the degree
+# symbol and the minute/second parts are all optional (covers a bare
+# "46.38N" as well as DM - decimal minutes, no seconds - and full DMS), and
+# degree/minute/second numbers may use a comma decimal separator.
 _DMS_PATTERN = re.compile(
-    r"""^\s*
-    (?P<deg>\d+(?:\.\d+)?)\s*°\s*
-    (?P<min>\d+(?:\.\d+)?)\s*['’′]\s*
-    (?:(?P<sec>\d+(?:\.\d+)?)\s*["”″]\s*)?
-    (?P<hem>[NSEWnsew])\s*$
+    rf"""^\s*
+    (?P<hem_pre>[NSEWnsew])?\s*
+    (?P<deg>{_NUMBER})\s*[°º]?\s*
+    (?:(?P<min>{_NUMBER})\s*['’′]\s*)?
+    (?:(?P<sec>{_NUMBER})\s*["”″]\s*)?
+    (?P<hem_post>[NSEWnsew])?\s*$
     """,
     re.VERBOSE,
 )
 
 
 def _parse_dms(value):
-    """Parse '46° 23′ 06.06″ N' into (decimal_degrees, axis); None if not DMS."""
+    """Parse a hemisphere-annotated value - '46° 23′ 06.06″ N', 'N46.38',
+    '8° 02.5′ E' - into (decimal_degrees, axis). None if no hemisphere
+    letter is present (not this format) or two are (contradictory input).
+    """
     if not isinstance(value, str):
         return None
     match = _DMS_PATTERN.match(value.strip())
     if match is None:
         return None
 
-    degrees = float(match.group("deg"))
-    minutes = float(match.group("min"))
-    seconds = float(match.group("sec")) if match.group("sec") else 0.0
-    hemisphere = match.group("hem").upper()
+    hem_pre = match.group("hem_pre")
+    hem_post = match.group("hem_post")
+    if hem_pre and hem_post:
+        return None
+    hemisphere = hem_pre or hem_post
+    if hemisphere is None:
+        return None
+    hemisphere = hemisphere.upper()
 
-    decimal = degrees + minutes / 60 + seconds / 3600
+    def _num(group_name):
+        raw = match.group(group_name)
+        return float(raw.replace(",", ".")) if raw else 0.0
+
+    decimal = _num("deg") + _num("min") / 60 + _num("sec") / 3600
     if hemisphere in ("S", "W"):
         decimal = -decimal
 
@@ -80,11 +98,25 @@ def _parse_dms(value):
 
 
 def _parse_decimal_degree(value):
+    """Parse a plain decimal degree, no hemisphere letter: '46.385018',
+    '46,385018' (comma decimal separator), and '46.385018°' (stray degree
+    symbol, no hemisphere) are all accepted.
+    """
     if value is None:
         return None
     if isinstance(value, str):
-        value = value.strip()
-        if value == "":
+        text = value.strip()
+        if text.endswith(("°", "º")):
+            text = text[:-1].strip()
+        if text == "":
+            return None
+        try:
+            return float(text)
+        except ValueError:
+            pass
+        try:
+            return float(text.replace(",", "."))
+        except ValueError:
             return None
     try:
         return float(value)
@@ -196,12 +228,52 @@ def _wgs84_to_lv(lat, lon, target):
     return easting, northing
 
 
-def convert_coordinates(cx, cy, target=CRSType.LV03):
+def _parse_planar_meters(value):
+    if value is None:
+        return None
+    if isinstance(value, str):
+        value = value.replace(" ", "").replace("'", "")
+        if value == "":
+            return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+# LV95 = LV03 + this offset. This is only a flat-offset approximation: it is
+# exact within this module's own WGS84 formula (see _LV_ORIGIN above, whose
+# two constants differ by exactly this amount), but it does NOT reproduce
+# the real network-densification distortion (up to ~1-2m) between the two
+# official reference frames. An accurate transform needs swisstopo's
+# official correction grid, which is not implemented yet - planned for
+# later.
+_LV03_LV95_OFFSET = (2_000_000, 1_000_000)
+
+
+def _convert_lv(cx, cy, source, target):
+    x = _parse_planar_meters(cx)
+    y = _parse_planar_meters(cy)
+    if x is None or y is None:
+        return None
+
+    if source == target:
+        return x, y
+
+    e_offset, n_offset = _LV03_LV95_OFFSET
+    sign = 1 if target == CRSType.LV95 else -1
+    return x + sign * e_offset, y + sign * n_offset
+
+
+def convert_coordinates(cx, cy, target=CRSType.LV03, source=None):
     """Convert a (cx, cy) pair to `target` (CRSType.LV03 by default).
 
-    Limitation: only WGS84 is supported as a source in this version. Any
-    other or unrecognized source - including LV03/LV95 input, since get_CRS
-    does not detect those yet - returns None rather than converting.
+    `source` may be given explicitly as CRSType.LV03 or CRSType.LV95 to
+    convert directly between the two planar systems - get_CRS does not
+    detect LV03/LV95 sources yet, so this can't be auto-detected. Left at
+    its default (None), the source is auto-detected and only WGS84 is
+    recognized; any other or unrecognized source returns None rather than
+    converting.
 
     An invalid `target` raises ValueError instead of returning None: it is
     a caller configuration mistake, not messy row data, so it should fail
@@ -212,6 +284,9 @@ def convert_coordinates(cx, cy, target=CRSType.LV03):
             f"convert_coordinates does not support target={target!r}; "
             "only CRSType.LV03/CRSType.LV95 are implemented"
         )
+
+    if source in (CRSType.LV03, CRSType.LV95):
+        return _convert_lv(cx, cy, source, target)
 
     resolved = _detect_wgs84(cx, cy)
     if resolved is None:
