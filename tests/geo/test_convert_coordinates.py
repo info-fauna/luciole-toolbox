@@ -12,36 +12,43 @@ _ORIGIN_LV03 = (600072.37, 200147.07)
 _ORIGIN_LV95 = (2600072.37, 1200147.07)
 
 
+@pytest.mark.integration
 def test_convert_coordinates_callable():
     convert_coordinates(46.385018, 8.044591)
 
 
+@pytest.mark.integration
 def test_convert_coordinates_default_target_is_LV03():
     assert convert_coordinates(
         _ORIGIN_LAT, _ORIGIN_LON) == pytest.approx(_ORIGIN_LV03)
 
 
+@pytest.mark.integration
 def test_convert_coordinates_to_LV03():
     result = convert_coordinates(_ORIGIN_LAT, _ORIGIN_LON, target=CRSType.LV03)
     assert result == pytest.approx(_ORIGIN_LV03)
 
 
+@pytest.mark.integration
 def test_convert_coordinates_to_LV95():
     result = convert_coordinates(_ORIGIN_LAT, _ORIGIN_LON, target=CRSType.LV95)
     assert result == pytest.approx(_ORIGIN_LV95)
 
 
+@pytest.mark.integration
 def test_convert_coordinates_dms_input_matches_decimal():
     result = convert_coordinates("46°57'08.66\"N", "7°26'22.50\"E")
     assert result == pytest.approx(_ORIGIN_LV03)
 
 
+@pytest.mark.integration
 def test_convert_coordinates_swapped_columns_match():
     normal = convert_coordinates(46.385018, 8.044591)
     swapped = convert_coordinates(8.044591, 46.385018)
     assert swapped == pytest.approx(normal)
 
 
+@pytest.mark.integration
 def test_convert_coordinates_realistic_point_within_swiss_bounds():
     easting, northing = convert_coordinates(47.3769, 8.5417)
     assert 480_000 < easting < 850_000
@@ -72,6 +79,7 @@ def test_convert_coordinates_invalid_target_raises():
         convert_coordinates(46.385018, 8.044591, target="not-a-crs")
 
 
+@pytest.mark.integration
 @pytest.mark.parametrize(
     "cx, cy, source, target",
     [
@@ -98,6 +106,7 @@ def test_convert_coordinates_autodetects_lv_source(cx, cy, source, target):
     ],
     ids=["lv03-to-lv95", "lv95-to-lv03", "lv03-thousand-separators"],
 )
+@pytest.mark.integration
 def test_convert_coordinates_lv03_lv95_offset(cx, cy, source, target, expected):
     result = convert_coordinates(cx, cy, target=target, source=source)
     assert result == pytest.approx(expected)
@@ -145,6 +154,7 @@ def test_convert_coordinates_lv_invalid_input_returns_none(cx, cy):
     ],
     ids=["point-1", "point-2"],
 )
+@pytest.mark.integration
 def test_convert_coordinates_wgs84_to_lv03_reference(lat, lon, expected):
     result = convert_coordinates(lat, lon, target=CRSType.LV03)
     assert result == pytest.approx(expected, rel=1e-5)
@@ -158,6 +168,7 @@ def test_convert_coordinates_wgs84_to_lv03_reference(lat, lon, expected):
     ],
     ids=["point-1", "point-2"],
 )
+@pytest.mark.integration
 def test_convert_coordinates_lv03_to_lv95_reference(x, y, expected):
     result = convert_coordinates(
         x, y, target=CRSType.LV95, source=CRSType.LV03)
@@ -172,6 +183,7 @@ def test_convert_coordinates_lv03_to_lv95_reference(x, y, expected):
     ],
     ids=["point-1", "point-2"],
 )
+@pytest.mark.integration
 def test_convert_coordinates_lv95_to_wgs84_reference(x, y, expected):
     result = convert_coordinates(
         x, y, target=CRSType.WGS84, source=CRSType.LV95)

@@ -1,7 +1,11 @@
+from __future__ import annotations
+
 import re
+from dataclasses import dataclass
 from enum import Enum
 
 import pyproj
+import requests
 
 # Allows pyproj to fetch the swisstopo NT grid shift files (needed for
 # accurate WGS84 <-> LV03/LV95 transformations) from the CDN on first use.
@@ -90,9 +94,12 @@ _CRS_EPSG = {
 # area_of_use is CH+Liechtenstein only) widened by a margin so hand-entered
 # points just across the border still resolve.
 _NEIGHBOUR_MARGIN_DEG = 1.0
-_CH_WEST, _CH_SOUTH, _CH_EAST, _CH_NORTH = pyproj.CRS(CRSType.LV95.epsg).area_of_use.bounds
-_LON_RANGE = (_CH_WEST - _NEIGHBOUR_MARGIN_DEG, _CH_EAST + _NEIGHBOUR_MARGIN_DEG)
-_LAT_RANGE = (_CH_SOUTH - _NEIGHBOUR_MARGIN_DEG, _CH_NORTH + _NEIGHBOUR_MARGIN_DEG)
+_CH_WEST, _CH_SOUTH, _CH_EAST, _CH_NORTH = pyproj.CRS(
+    CRSType.LV95.epsg).area_of_use.bounds
+_LON_RANGE = (_CH_WEST - _NEIGHBOUR_MARGIN_DEG,
+              _CH_EAST + _NEIGHBOUR_MARGIN_DEG)
+_LAT_RANGE = (_CH_SOUTH - _NEIGHBOUR_MARGIN_DEG,
+              _CH_NORTH + _NEIGHBOUR_MARGIN_DEG)
 
 _NUMBER = r"\d+(?:[.,]\d+)?"
 
@@ -230,10 +237,14 @@ def _detect_wgs84(cx, cy):
 # which system and axis it belongs to, and (like _detect_wgs84) tolerates
 # swapped cx/cy for free.
 _LV_NEIGHBOUR_MARGIN_M = 50_000
-_LV03_EASTING_RANGE = (485_000 - _LV_NEIGHBOUR_MARGIN_M, 834_000 + _LV_NEIGHBOUR_MARGIN_M)
-_LV03_NORTHING_RANGE = (75_000 - _LV_NEIGHBOUR_MARGIN_M, 296_000 + _LV_NEIGHBOUR_MARGIN_M)
-_LV95_EASTING_RANGE = (2_485_000 - _LV_NEIGHBOUR_MARGIN_M, 2_834_000 + _LV_NEIGHBOUR_MARGIN_M)
-_LV95_NORTHING_RANGE = (1_075_000 - _LV_NEIGHBOUR_MARGIN_M, 1_296_000 + _LV_NEIGHBOUR_MARGIN_M)
+_LV03_EASTING_RANGE = (485_000 - _LV_NEIGHBOUR_MARGIN_M,
+                       834_000 + _LV_NEIGHBOUR_MARGIN_M)
+_LV03_NORTHING_RANGE = (75_000 - _LV_NEIGHBOUR_MARGIN_M,
+                        296_000 + _LV_NEIGHBOUR_MARGIN_M)
+_LV95_EASTING_RANGE = (2_485_000 - _LV_NEIGHBOUR_MARGIN_M,
+                       2_834_000 + _LV_NEIGHBOUR_MARGIN_M)
+_LV95_NORTHING_RANGE = (1_075_000 - _LV_NEIGHBOUR_MARGIN_M,
+                        1_296_000 + _LV_NEIGHBOUR_MARGIN_M)
 
 _LV_SLOTS = {
     (CRSType.LV03, "easting"): _LV03_EASTING_RANGE,
@@ -246,7 +257,8 @@ _LV_SLOTS = {
 def _guess_lv_slot(value):
     """Return the (CRSType, axis) slot a planar value unambiguously falls
     into, else None (out of range, or in the gap between two ranges)."""
-    matches = [slot for slot, (lo, hi) in _LV_SLOTS.items() if lo <= value <= hi]
+    matches = [slot for slot,
+               (lo, hi) in _LV_SLOTS.items() if lo <= value <= hi]
     return matches[0] if len(matches) == 1 else None
 
 
@@ -356,3 +368,94 @@ def convert_coordinates(cx, cy, target=CRSType.LV03, source=None):
         return _get_transformer(CRSType.WGS84, target).transform(lat, lon)
 
     return None
+
+
+@dataclass(frozen=True)
+class LocationInfo:
+    """Administrative context of a point: BFS/OFS commune number (COFS),
+    commune, canton and country. Names are exactly as published by
+    swisstopo, not translated by this module - the country name comes out
+    German ("Schweiz", "Liechtenstein"), commune/canton names in their own
+    official language. `canton` is None for a Liechtenstein point, since it
+    isn't part of the Swiss canton system.
+    """
+
+    cofs: int | None
+    commune: str | None
+    canton: str | None
+    country: str | None
+
+
+# Public read-only API - no key required. See
+# https://api3.geo.admin.ch/services/sdiservices.html#identify-features
+_SWISSTOPO_IDENTIFY_URL = "https://api3.geo.admin.ch/rest/services/api/MapServer/identify"
+_SWISSTOPO_LAND_LAYER = "ch.swisstopo.swissboundaries3d-land-flaeche.fill"
+_SWISSTOPO_KANTON_LAYER = "ch.swisstopo.swissboundaries3d-kanton-flaeche.fill"
+_SWISSTOPO_GEMEINDE_LAYER = "ch.swisstopo.swissboundaries3d-gemeinde-flaeche.fill"
+
+# Reused across calls instead of opening a new connection every time -
+# callers needing custom auth/timeouts/retries can pass their own session.
+_DEFAULT_SESSION = requests.Session()
+
+
+def _identify_by_layer(easting, northing, session):
+    params = {
+        "geometry": f"{easting},{northing}",
+        "geometryType": "esriGeometryPoint",
+        "sr": 2056,
+        "layers": (
+            f"all:{_SWISSTOPO_LAND_LAYER},"
+            f"{_SWISSTOPO_KANTON_LAYER},{_SWISSTOPO_GEMEINDE_LAYER}"
+        ),
+        "tolerance": 0,
+        "mapExtent": f"{easting},{northing},{easting},{northing}",
+        "imageDisplay": "1,1,96",
+        "returnGeometry": "false",
+    }
+    response = (session or _DEFAULT_SESSION).get(
+        _SWISSTOPO_IDENTIFY_URL, params=params, timeout=10
+    )
+    response.raise_for_status()
+
+    by_layer = {}
+    for result in response.json()["results"]:
+        by_layer.setdefault(result["layerBodId"], []
+                            ).append(result["attributes"])
+    return by_layer
+
+
+def get_location_info(cx, cy, source=None, session=None):
+    """Look up the Swiss/Liechtenstein commune, canton and country a point
+    falls in, via swisstopo's public identify API.
+
+    cx/cy are detected/converted the same way as convert_coordinates
+    (`source` skips detection); the point is then queried against
+    swisstopo's LV95 administrative-boundary layers. Returns None if the
+    coordinate can't be resolved, or falls outside Switzerland/Liechtenstein
+    entirely. Network errors from the underlying request propagate to the
+    caller rather than being swallowed into a None return, since that would
+    be indistinguishable from a point genuinely outside CH/LI.
+    """
+    coords = convert_coordinates(cx, cy, target=CRSType.LV95, source=source)
+    if coords is None:
+        return None
+    easting, northing = coords
+
+    by_layer = _identify_by_layer(easting, northing, session)
+
+    land = by_layer.get(_SWISSTOPO_LAND_LAYER)
+    if not land:
+        return None
+    country = land[0]["bez"]
+
+    kanton = by_layer.get(_SWISSTOPO_KANTON_LAYER)
+    canton = kanton[0]["name"] if kanton else None
+
+    current_gemeinde = next(
+        (g for g in by_layer.get(_SWISSTOPO_GEMEINDE_LAYER, []) if g["is_current_jahr"]),
+        None,
+    )
+    cofs = current_gemeinde["gde_nr"] if current_gemeinde else None
+    commune = current_gemeinde["gemname"] if current_gemeinde else None
+
+    return LocationInfo(cofs=cofs, commune=commune, canton=canton, country=country)

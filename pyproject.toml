@@ -18,6 +18,7 @@ classifiers = [
 ]
 dependencies = [
     "pyproj>=3.6",
+    "requests>=2.31",
 ]
 
 [project.optional-dependencies]
@@ -30,3 +31,6 @@ packages = ["src/luciole_toolbox"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "integration: hits a real network endpoint (swisstopo API, pyproj CDN grid shift files) - excluded via -m 'not integration'",
+]
