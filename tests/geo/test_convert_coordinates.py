@@ -55,14 +55,12 @@ def test_convert_coordinates_realistic_point_within_swiss_bounds():
         ("46.385018", None),
         ("", ""),
         ("impossible", "8.044591"),
-        ("2556080", "1206412"),
     ],
     ids=[
         "cx-none",
         "cy-none",
         "both-empty",
         "cx-non-numeric",
-        "planar-not-yet-supported",
     ],
 )
 def test_convert_coordinates_unresolvable_source_returns_none(cx, cy):
@@ -72,6 +70,20 @@ def test_convert_coordinates_unresolvable_source_returns_none(cx, cy):
 def test_convert_coordinates_invalid_target_raises():
     with pytest.raises(ValueError):
         convert_coordinates(46.385018, 8.044591, target="not-a-crs")
+
+
+@pytest.mark.parametrize(
+    "cx, cy, source, target",
+    [
+        ("2556080", "1206412", CRSType.LV95, CRSType.LV03),
+        ("646614.59", "137252.17", CRSType.LV03, CRSType.LV95),
+    ],
+    ids=["lv95-autodetected", "lv03-autodetected"],
+)
+def test_convert_coordinates_autodetects_lv_source(cx, cy, source, target):
+    autodetected = convert_coordinates(cx, cy, target=target)
+    explicit = convert_coordinates(cx, cy, target=target, source=source)
+    assert autodetected == pytest.approx(explicit)
 
 
 @pytest.mark.parametrize(

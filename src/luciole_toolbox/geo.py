@@ -205,16 +205,66 @@ def _detect_wgs84(cx, cy):
     return (x_value, y_value) if x_axis == "lat" else (y_value, x_value)
 
 
-def get_CRS(cx, cy):
-    """Detect the coordinate reference system of a (cx, cy) pair.
+# Native LV03/LV95 easting/northing bounds (metres), per swisstopo's
+# published validity envelope for each projection, widened by a margin so
+# hand-entered points just across the border still resolve. LV95 offsets
+# LV03 by a fixed +2,000,000 (easting) / +1,000,000 (northing), so the four
+# ranges below never overlap - this lets a value's magnitude alone say
+# which system and axis it belongs to, and (like _detect_wgs84) tolerates
+# swapped cx/cy for free.
+_LV_NEIGHBOUR_MARGIN_M = 50_000
+_LV03_EASTING_RANGE = (485_000 - _LV_NEIGHBOUR_MARGIN_M, 834_000 + _LV_NEIGHBOUR_MARGIN_M)
+_LV03_NORTHING_RANGE = (75_000 - _LV_NEIGHBOUR_MARGIN_M, 296_000 + _LV_NEIGHBOUR_MARGIN_M)
+_LV95_EASTING_RANGE = (2_485_000 - _LV_NEIGHBOUR_MARGIN_M, 2_834_000 + _LV_NEIGHBOUR_MARGIN_M)
+_LV95_NORTHING_RANGE = (1_075_000 - _LV_NEIGHBOUR_MARGIN_M, 1_296_000 + _LV_NEIGHBOUR_MARGIN_M)
 
-    Limitation: only WGS84 (decimal degrees or DMS, e.g. 46° 23' 06.06" N)
-    is currently detected. LV03/LV95 planar detection is not implemented
-    yet; such input returns None, same as any other unrecognized format.
+_LV_SLOTS = {
+    (CRSType.LV03, "easting"): _LV03_EASTING_RANGE,
+    (CRSType.LV03, "northing"): _LV03_NORTHING_RANGE,
+    (CRSType.LV95, "easting"): _LV95_EASTING_RANGE,
+    (CRSType.LV95, "northing"): _LV95_NORTHING_RANGE,
+}
+
+
+def _guess_lv_slot(value):
+    """Return the (CRSType, axis) slot a planar value unambiguously falls
+    into, else None (out of range, or in the gap between two ranges)."""
+    matches = [slot for slot, (lo, hi) in _LV_SLOTS.items() if lo <= value <= hi]
+    return matches[0] if len(matches) == 1 else None
+
+
+def _detect_lv(cx, cy):
+    """Return CRSType.LV03 or CRSType.LV95 if cx/cy jointly form a valid
+    planar easting/northing pair in that system, else None. Tolerant of
+    swapped cx/cy, same as _detect_wgs84."""
+    x = _parse_planar_meters(cx)
+    y = _parse_planar_meters(cy)
+    if x is None or y is None:
+        return None
+
+    x_slot = _guess_lv_slot(x)
+    y_slot = _guess_lv_slot(y)
+    if x_slot is None or y_slot is None:
+        return None
+
+    x_crs, x_axis = x_slot
+    y_crs, y_axis = y_slot
+    if x_crs != y_crs or x_axis == y_axis:
+        return None
+
+    return x_crs
+
+
+def get_CRS(cx, cy):
+    """Detect the coordinate reference system of a (cx, cy) pair: WGS84
+    (decimal degrees or DMS, e.g. 46° 23' 06.06" N) or LV03/LV95 (planar
+    easting/northing in metres, told apart by their non-overlapping
+    magnitude ranges - see _LV_SLOTS). Returns None for any other or
+    unrecognized format.
     """
     if _detect_wgs84(cx, cy) is not None:
         return CRSType.WGS84
-    return None
+    return _detect_lv(cx, cy)
 
 
 _SUPPORTED_TARGETS = tuple(CRSType)
@@ -262,12 +312,9 @@ def _convert_lv(cx, cy, source, target):
 def convert_coordinates(cx, cy, target=CRSType.LV03, source=None):
     """Convert a (cx, cy) pair to `target` (CRSType.LV03 by default).
 
-    `source` may be given explicitly as CRSType.LV03 or CRSType.LV95 to
-    convert directly from a planar system to any target (the other planar
-    system or WGS84) - get_CRS does not detect LV03/LV95 sources yet, so
-    this can't be auto-detected. Left at its default (None), the source is
-    auto-detected and only WGS84 is recognized; any other or unrecognized
-    source returns None rather than converting.
+    `source` may be given explicitly as CRSType.WGS84/LV03/LV95 to skip
+    detection. Left at its default (None), it is auto-detected via
+    get_CRS; unrecognized input returns None rather than converting.
 
     An invalid `target` raises ValueError instead of returning None: it is
     a caller configuration mistake, not messy row data, so it should fail
@@ -279,12 +326,16 @@ def convert_coordinates(cx, cy, target=CRSType.LV03, source=None):
             "only CRSType.LV03/CRSType.LV95/CRSType.WGS84 are implemented"
         )
 
+    source = source or get_CRS(cx, cy)
+
     if source in (CRSType.LV03, CRSType.LV95):
         return _convert_lv(cx, cy, source, target)
 
-    resolved = _detect_wgs84(cx, cy)
-    if resolved is None:
-        return None
+    if source == CRSType.WGS84:
+        resolved = _detect_wgs84(cx, cy)
+        if resolved is None:
+            return None
+        lat, lon = resolved
+        return _get_transformer(CRSType.WGS84, target).transform(lat, lon)
 
-    lat, lon = resolved
-    return _get_transformer(CRSType.WGS84, target).transform(lat, lon)
+    return None

@@ -60,12 +60,39 @@ def test_get_CRS_unresolvable_axes(cx, cy):
     "cx, cy",
     [
         ("2556080", "1206412"),
-        ("646614.59", "137252.17"),
+        (2556080, 1206412),
+        ("1206412", "2556080"),
     ],
-    ids=["lv95-like-not-detected", "lv03-like-not-detected"],
+    ids=["strings", "numbers", "swapped"],
 )
-def test_get_CRS_planar_not_yet_supported(cx, cy):
-    """LV03/LV95 detection is not implemented yet (see get_CRS docstring)."""
+def test_get_CRS_lv95(cx, cy):
+    assert get_CRS(cx, cy) == CRSType.LV95
+
+
+@pytest.mark.parametrize(
+    "cx, cy",
+    [
+        ("646614.59", "137252.17"),
+        (646614.59, 137252.17),
+        ("137252.17", "646614.59"),
+        ("646'614.59", "137'252.17"),
+    ],
+    ids=["strings", "numbers", "swapped", "thousand-separators"],
+)
+def test_get_CRS_lv03(cx, cy):
+    assert get_CRS(cx, cy) == CRSType.LV03
+
+
+@pytest.mark.parametrize(
+    "cx, cy",
+    [
+        (600_000, 646_614.59),
+        (600_000, 2_600_000),
+        (346_500, 434_500),
+    ],
+    ids=["both-easting-like", "mismatched-systems", "in-the-gap-between-ranges"],
+)
+def test_get_CRS_lv_unresolvable_axes(cx, cy):
     assert get_CRS(cx, cy) is None
 
 
