@@ -1,14 +1,29 @@
 import re
 from enum import Enum
 
+import pyproj
 
-def _parse_coordinate(value):
+# Allows pyproj to fetch the swisstopo NT grid shift files (needed for
+# accurate WGS84 <-> LV03/LV95 transformations) from the CDN on first use.
+pyproj.network.set_network_enabled(active=True)
+
+
+def _strip_thousand_separators(value):
+    """None passes through unchanged; strings have spaces/apostrophes
+    (thousand separators) stripped and are reduced to None if left empty."""
     if value is None:
         return None
     if isinstance(value, str):
         value = value.replace(" ", "").replace("'", "")
         if value == "":
             return None
+    return value
+
+
+def _parse_coordinate(value):
+    value = _strip_thousand_separators(value)
+    if value is None:
+        return None
     try:
         return abs(int(float(value)))
     except (TypeError, ValueError):
@@ -40,12 +55,27 @@ class CRSType(Enum):
     LV03 = "LV03"
     LV95 = "LV95"
 
+    @property
+    def epsg(self):
+        return _CRS_EPSG[self]
+
+
+_CRS_EPSG = {
+    CRSType.WGS84: "EPSG:4326",
+    CRSType.LV03: "EPSG:21781",
+    CRSType.LV95: "EPSG:2056",
+}
 
 # Switzerland and immediate neighbours, decimal degrees. Used to resolve
 # which of cx/cy is latitude vs longitude when no hemisphere letter is given
 # (the two ranges never overlap, so this also tolerates swapped cx/cy).
-_LAT_RANGE = (45.0, 48.5)
-_LON_RANGE = (4.5, 11.5)
+# Derived from the LV95 projection's own validity envelope (pyproj's
+# area_of_use is CH+Liechtenstein only) widened by a margin so hand-entered
+# points just across the border still resolve.
+_NEIGHBOUR_MARGIN_DEG = 1.0
+_CH_WEST, _CH_SOUTH, _CH_EAST, _CH_NORTH = pyproj.CRS(CRSType.LV95.epsg).area_of_use.bounds
+_LON_RANGE = (_CH_WEST - _NEIGHBOUR_MARGIN_DEG, _CH_EAST + _NEIGHBOUR_MARGIN_DEG)
+_LAT_RANGE = (_CH_SOUTH - _NEIGHBOUR_MARGIN_DEG, _CH_NORTH + _NEIGHBOUR_MARGIN_DEG)
 
 _NUMBER = r"\d+(?:[.,]\d+)?"
 
@@ -187,68 +217,34 @@ def get_CRS(cx, cy):
     return None
 
 
-# Bern old observatory, origin of the Swiss projection, in arc-seconds.
-_ORIGIN_LAT_SEC = 169028.66
-_ORIGIN_LON_SEC = 26782.5
+_SUPPORTED_TARGETS = tuple(CRSType)
 
-# LV03 and LV95 share the exact same projection polynomial and differ only
-# in the false easting/northing below. Each target is computed directly from
-# WGS84 with its own constants below, rather than deriving one from the
-# other via a fixed offset.
-_LV_ORIGIN = {
-    CRSType.LV03: (600072.37, 200147.07),
-    CRSType.LV95: (2600072.37, 1200147.07),
-}
-
-_SUPPORTED_TARGETS = tuple(_LV_ORIGIN)
+# Cached per (source, target) pair - building a Transformer parses the grid
+# shift files, so it's worth not repeating on every call.
+_TRANSFORMERS = {}
 
 
-def _wgs84_to_lv(lat, lon, target):
-    """Approximate WGS84 -> LV03/LV95 conversion (swisstopo formula, ~1m accuracy)."""
-    phi = (lat * 3600 - _ORIGIN_LAT_SEC) / 10000
-    lam = (lon * 3600 - _ORIGIN_LON_SEC) / 10000
-
-    easting_origin, northing_origin = _LV_ORIGIN[target]
-
-    easting = (
-        easting_origin
-        + 211455.93 * lam
-        - 10938.51 * lam * phi
-        - 0.36 * lam * phi**2
-        - 44.54 * lam**3
-    )
-    northing = (
-        northing_origin
-        + 308807.95 * phi
-        + 3745.25 * lam**2
-        + 76.63 * phi**2
-        - 194.56 * lam**2 * phi
-        + 119.79 * phi**3
-    )
-    return easting, northing
+def _get_transformer(source, target):
+    key = (source, target)
+    if key not in _TRANSFORMERS:
+        # always_xy=False keeps each CRS's own defined axis order: (lat, lon)
+        # for EPSG:4326, (easting, northing) for EPSG:21781/2056 - which is
+        # exactly the order this module already parses/returns, so no manual
+        # reordering is needed here.
+        _TRANSFORMERS[key] = pyproj.Transformer.from_crs(
+            source.epsg, target.epsg, always_xy=False
+        )
+    return _TRANSFORMERS[key]
 
 
 def _parse_planar_meters(value):
+    value = _strip_thousand_separators(value)
     if value is None:
         return None
-    if isinstance(value, str):
-        value = value.replace(" ", "").replace("'", "")
-        if value == "":
-            return None
     try:
         return float(value)
     except (TypeError, ValueError):
         return None
-
-
-# LV95 = LV03 + this offset. This is only a flat-offset approximation: it is
-# exact within this module's own WGS84 formula (see _LV_ORIGIN above, whose
-# two constants differ by exactly this amount), but it does NOT reproduce
-# the real network-densification distortion (up to ~1-2m) between the two
-# official reference frames. An accurate transform needs swisstopo's
-# official correction grid, which is not implemented yet - planned for
-# later.
-_LV03_LV95_OFFSET = (2_000_000, 1_000_000)
 
 
 def _convert_lv(cx, cy, source, target):
@@ -260,20 +256,18 @@ def _convert_lv(cx, cy, source, target):
     if source == target:
         return x, y
 
-    e_offset, n_offset = _LV03_LV95_OFFSET
-    sign = 1 if target == CRSType.LV95 else -1
-    return x + sign * e_offset, y + sign * n_offset
+    return _get_transformer(source, target).transform(x, y)
 
 
 def convert_coordinates(cx, cy, target=CRSType.LV03, source=None):
     """Convert a (cx, cy) pair to `target` (CRSType.LV03 by default).
 
     `source` may be given explicitly as CRSType.LV03 or CRSType.LV95 to
-    convert directly between the two planar systems - get_CRS does not
-    detect LV03/LV95 sources yet, so this can't be auto-detected. Left at
-    its default (None), the source is auto-detected and only WGS84 is
-    recognized; any other or unrecognized source returns None rather than
-    converting.
+    convert directly from a planar system to any target (the other planar
+    system or WGS84) - get_CRS does not detect LV03/LV95 sources yet, so
+    this can't be auto-detected. Left at its default (None), the source is
+    auto-detected and only WGS84 is recognized; any other or unrecognized
+    source returns None rather than converting.
 
     An invalid `target` raises ValueError instead of returning None: it is
     a caller configuration mistake, not messy row data, so it should fail
@@ -282,7 +276,7 @@ def convert_coordinates(cx, cy, target=CRSType.LV03, source=None):
     if target not in _SUPPORTED_TARGETS:
         raise ValueError(
             f"convert_coordinates does not support target={target!r}; "
-            "only CRSType.LV03/CRSType.LV95 are implemented"
+            "only CRSType.LV03/CRSType.LV95/CRSType.WGS84 are implemented"
         )
 
     if source in (CRSType.LV03, CRSType.LV95):
@@ -293,4 +287,4 @@ def convert_coordinates(cx, cy, target=CRSType.LV03, source=None):
         return None
 
     lat, lon = resolved
-    return _wgs84_to_lv(lat, lon, target)
+    return _get_transformer(CRSType.WGS84, target).transform(lat, lon)
