@@ -10,3 +10,4 @@ dist/
 .ruff_cache/
 misc/
 src/luciole_toolbox/_version.py
+site/
