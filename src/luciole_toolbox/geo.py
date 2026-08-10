@@ -376,6 +376,36 @@ def convert_coordinates(cx, cy, target=CRSType.LV03, source=None):
     return None
 
 
+# Switzerland/Liechtenstein bounding box in LV95 - the same figures
+# _LV95_EASTING_RANGE/_LV95_NORTHING_RANGE are derived from before widening
+# by the neighbour margin, kept separate here since this is a real
+# inside/outside check rather than a CRS-detection tolerance.
+_CH_LV95_EASTING_RANGE = (2_485_000, 2_834_000)
+_CH_LV95_NORTHING_RANGE = (1_075_000, 1_296_000)
+
+
+def is_in_switzerland_bbox(cx, cy, source=None):
+    """Return whether (cx, cy) falls within Switzerland/Liechtenstein's
+    bounding box - a fast rectangular approximation, not the precise
+    border polygon (see get_location_info for that, at the cost of a
+    network call).
+
+    Accepts the same input as convert_coordinates: WGS84 (decimal degrees
+    or DMS), LV03 or LV95, auto-detected unless `source` is given
+    explicitly. Returns None if the coordinate can't be parsed/detected at
+    all, so callers can tell "unrecognized input" apart from "recognized
+    but outside the box" instead of both reading as one falsy value.
+    """
+    coords = convert_coordinates(cx, cy, target=CRSType.LV95, source=source)
+    if coords is None:
+        return None
+    easting, northing = coords
+
+    east_min, east_max = _CH_LV95_EASTING_RANGE
+    north_min, north_max = _CH_LV95_NORTHING_RANGE
+    return east_min <= easting <= east_max and north_min <= northing <= north_max
+
+
 @dataclass(frozen=True)
 class LocationInfo:
     """Administrative context of a point: BFS/OFS commune number (COFS),
