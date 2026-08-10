@@ -24,6 +24,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=7.0",
+    "ruff>=0.6",
 ]
 
 [tool.hatch.version]
@@ -40,3 +41,10 @@ testpaths = ["tests"]
 markers = [
     "integration: hits a real network endpoint (swisstopo API, pyproj CDN grid shift files) - excluded via -m 'not integration'",
 ]
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
