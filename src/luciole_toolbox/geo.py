@@ -80,12 +80,18 @@ class CRSType(Enum):
     def epsg(self):
         return _CRS_EPSG[self]
 
+    @classmethod
+    def from_epsg_code(cls, epsg_code):
+        return _EPSG_CRS[epsg_code]
+
 
 _CRS_EPSG = {
     CRSType.WGS84: "EPSG:4326",
     CRSType.LV03: "EPSG:21781",
     CRSType.LV95: "EPSG:2056",
 }
+
+_EPSG_CRS = {epsg_code: crs for crs, epsg_code in _CRS_EPSG.items()}
 
 # Switzerland and immediate neighbours, decimal degrees. Used to resolve
 # which of cx/cy is latitude vs longitude when no hemisphere letter is given
