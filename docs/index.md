@@ -1,8 +1,9 @@
 # Luciole Toolbox
 
-Python utility library. Currently ships a `geo` module for Swiss coordinates:
-CRS detection (WGS84/LV03/LV95), conversion between them, CKM2/CNHA grid
-codes, and commune/canton lookup via the swisstopo API.
+Python utility library from info-fauna for preparing and standardizing Swiss
+fauna observation data. Currently ships a `geo` module for Swiss
+coordinates: CRS detection (WGS84/LV03/LV95), conversion between them,
+CKM2/CNHA grid codes, and commune/canton lookup via the swisstopo API.
 
 ## Installation
 
