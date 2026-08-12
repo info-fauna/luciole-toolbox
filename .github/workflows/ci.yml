@@ -38,3 +38,10 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - run: pip install ".[dev]"
       - run: pytest -m "not integration"
+
+  ci-status:
+    if: always()
+    needs: [lint, test]
+    runs-on: ubuntu-latest
+    steps:
+      - run: ${{ (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) && 'exit 1' || 'exit 0' }}
