@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- License changed from MIT to LGPL-3.0-or-later.
+
+## [0.1.0] - 2026-08-10
+
 ### Added
 
 - `geo` module: CRS detection (WGS84/LV03/LV95), coordinate conversion,
