@@ -24,12 +24,16 @@ def test_is_in_switzerland_bbox_callable():
         (_CH_LV95_EASTING_MAX, 1_200_000),
         (2_600_000, _CH_LV95_NORTHING_MAX),
     ],
-    ids=["comfortably-inside", "easting-min-edge",
-         "northing-min-edge", "easting-max-edge", "northing-max-edge"],
+    ids=[
+        "comfortably-inside",
+        "easting-min-edge",
+        "northing-min-edge",
+        "easting-max-edge",
+        "northing-max-edge",
+    ],
 )
 def test_is_in_switzerland_bbox_lv95_inside(easting, northing):
-    assert is_in_switzerland_bbox(
-        easting, northing, source=CRSType.LV95) is True
+    assert is_in_switzerland_bbox(easting, northing, source=CRSType.LV95) is True
 
 
 @pytest.mark.parametrize(
@@ -40,12 +44,10 @@ def test_is_in_switzerland_bbox_lv95_inside(easting, northing):
         (2_600_000, 1_030_000),
         (2_600_000, 1_310_000),
     ],
-    ids=["easting-below-min", "easting-above-max",
-         "northing-below-min", "northing-above-max"],
+    ids=["easting-below-min", "easting-above-max", "northing-below-min", "northing-above-max"],
 )
 def test_is_in_switzerland_bbox_lv95_outside(easting, northing):
-    assert is_in_switzerland_bbox(
-        easting, northing, source=CRSType.LV95) is False
+    assert is_in_switzerland_bbox(easting, northing, source=CRSType.LV95) is False
 
 
 @pytest.mark.integration
@@ -58,9 +60,13 @@ def test_is_in_switzerland_bbox_lv95_outside(easting, northing):
         (600_000, 200_000, CRSType.LV03),
         (2_600_000, 1_200_000, CRSType.LV95),
     ],
-    ids=["wgs84-decimal-bern", "wgs84-dms-bern",
-         "lv03-autodetected-bern", "lv03-explicit-source-bern",
-         "lv95-explicit-source-bern"],
+    ids=[
+        "wgs84-decimal-bern",
+        "wgs84-dms-bern",
+        "lv03-autodetected-bern",
+        "lv03-explicit-source-bern",
+        "lv95-explicit-source-bern",
+    ],
 )
 def test_is_in_switzerland_bbox_inside_across_crs(cx, cy, source):
     assert is_in_switzerland_bbox(cx, cy, source=source) is True

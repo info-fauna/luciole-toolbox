@@ -100,12 +100,9 @@ _EPSG_CRS = {epsg_code: crs for crs, epsg_code in _CRS_EPSG.items()}
 # area_of_use is CH+Liechtenstein only) widened by a margin so hand-entered
 # points just across the border still resolve.
 _NEIGHBOUR_MARGIN_DEG = 1.0
-_CH_WEST, _CH_SOUTH, _CH_EAST, _CH_NORTH = pyproj.CRS(
-    CRSType.LV95.epsg).area_of_use.bounds
-_LON_RANGE = (_CH_WEST - _NEIGHBOUR_MARGIN_DEG,
-              _CH_EAST + _NEIGHBOUR_MARGIN_DEG)
-_LAT_RANGE = (_CH_SOUTH - _NEIGHBOUR_MARGIN_DEG,
-              _CH_NORTH + _NEIGHBOUR_MARGIN_DEG)
+_CH_WEST, _CH_SOUTH, _CH_EAST, _CH_NORTH = pyproj.CRS(CRSType.LV95.epsg).area_of_use.bounds
+_LON_RANGE = (_CH_WEST - _NEIGHBOUR_MARGIN_DEG, _CH_EAST + _NEIGHBOUR_MARGIN_DEG)
+_LAT_RANGE = (_CH_SOUTH - _NEIGHBOUR_MARGIN_DEG, _CH_NORTH + _NEIGHBOUR_MARGIN_DEG)
 
 _NUMBER = r"\d+(?:[.,]\d+)?"
 
@@ -243,14 +240,10 @@ def _detect_wgs84(cx, cy):
 # which system and axis it belongs to, and (like _detect_wgs84) tolerates
 # swapped cx/cy for free.
 _LV_NEIGHBOUR_MARGIN_M = 50_000
-_LV03_EASTING_RANGE = (485_000 - _LV_NEIGHBOUR_MARGIN_M,
-                       834_000 + _LV_NEIGHBOUR_MARGIN_M)
-_LV03_NORTHING_RANGE = (75_000 - _LV_NEIGHBOUR_MARGIN_M,
-                        296_000 + _LV_NEIGHBOUR_MARGIN_M)
-_LV95_EASTING_RANGE = (2_485_000 - _LV_NEIGHBOUR_MARGIN_M,
-                       2_834_000 + _LV_NEIGHBOUR_MARGIN_M)
-_LV95_NORTHING_RANGE = (1_075_000 - _LV_NEIGHBOUR_MARGIN_M,
-                        1_296_000 + _LV_NEIGHBOUR_MARGIN_M)
+_LV03_EASTING_RANGE = (485_000 - _LV_NEIGHBOUR_MARGIN_M, 834_000 + _LV_NEIGHBOUR_MARGIN_M)
+_LV03_NORTHING_RANGE = (75_000 - _LV_NEIGHBOUR_MARGIN_M, 296_000 + _LV_NEIGHBOUR_MARGIN_M)
+_LV95_EASTING_RANGE = (2_485_000 - _LV_NEIGHBOUR_MARGIN_M, 2_834_000 + _LV_NEIGHBOUR_MARGIN_M)
+_LV95_NORTHING_RANGE = (1_075_000 - _LV_NEIGHBOUR_MARGIN_M, 1_296_000 + _LV_NEIGHBOUR_MARGIN_M)
 
 _LV_SLOTS = {
     (CRSType.LV03, "easting"): _LV03_EASTING_RANGE,
@@ -263,8 +256,7 @@ _LV_SLOTS = {
 def _guess_lv_slot(value):
     """Return the (CRSType, axis) slot a planar value unambiguously falls
     into, else None (out of range, or in the gap between two ranges)."""
-    matches = [slot for slot,
-               (lo, hi) in _LV_SLOTS.items() if lo <= value <= hi]
+    matches = [slot for slot, (lo, hi) in _LV_SLOTS.items() if lo <= value <= hi]
     return matches[0] if len(matches) == 1 else None
 
 
@@ -316,9 +308,7 @@ def _get_transformer(source, target):
         # for EPSG:4326, (easting, northing) for EPSG:21781/2056 - which is
         # exactly the order this module already parses/returns, so no manual
         # reordering is needed here.
-        _TRANSFORMERS[key] = pyproj.Transformer.from_crs(
-            source.epsg, target.epsg, always_xy=False
-        )
+        _TRANSFORMERS[key] = pyproj.Transformer.from_crs(source.epsg, target.epsg, always_xy=False)
     return _TRANSFORMERS[key]
 
 
@@ -440,23 +430,19 @@ def _identify_by_layer(easting, northing, session):
         "geometryType": "esriGeometryPoint",
         "sr": 2056,
         "layers": (
-            f"all:{_SWISSTOPO_LAND_LAYER},"
-            f"{_SWISSTOPO_KANTON_LAYER},{_SWISSTOPO_GEMEINDE_LAYER}"
+            f"all:{_SWISSTOPO_LAND_LAYER},{_SWISSTOPO_KANTON_LAYER},{_SWISSTOPO_GEMEINDE_LAYER}"
         ),
         "tolerance": 0,
         "mapExtent": f"{easting},{northing},{easting},{northing}",
         "imageDisplay": "1,1,96",
         "returnGeometry": "false",
     }
-    response = (session or _DEFAULT_SESSION).get(
-        _SWISSTOPO_IDENTIFY_URL, params=params, timeout=10
-    )
+    response = (session or _DEFAULT_SESSION).get(_SWISSTOPO_IDENTIFY_URL, params=params, timeout=10)
     response.raise_for_status()
 
     by_layer = {}
     for result in response.json()["results"]:
-        by_layer.setdefault(result["layerBodId"], []
-                            ).append(result["attributes"])
+        by_layer.setdefault(result["layerBodId"], []).append(result["attributes"])
     return by_layer
 
 
