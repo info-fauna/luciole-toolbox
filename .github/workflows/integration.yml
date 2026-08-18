@@ -1,0 +1,24 @@
+name: Integration tests
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 4 * * 1" # weekly (Monday) - catch upstream drift in swisstopo API / pyproj CDN even without new commits
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install ".[dev]"
+      - run: pytest -m integration

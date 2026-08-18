@@ -1,0 +1,29 @@
+site_name: Luciole Toolbox
+site_description: Python utility library for Swiss geodata handling.
+repo_url: https://github.com/info-fauna/luciole-toolbox
+repo_name: info-fauna/luciole-toolbox
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+nav:
+  - Home: index.md
+  - API Reference: reference.md
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            show_source: false
+            show_root_heading: true

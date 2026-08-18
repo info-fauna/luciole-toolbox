@@ -2,4 +2,5 @@ from luciole_toolbox import __version__
 
 
 def test_version():
-    assert __version__ == "0.1.0"
+    assert isinstance(__version__, str)
+    assert __version__ != ""

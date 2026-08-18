@@ -23,9 +23,7 @@ def test_get_location_info_callable():
 @pytest.mark.integration
 def test_get_location_info_swiss_point():
     result = get_location_info(*_BERN_LV95, source=CRSType.LV95)
-    assert result == LocationInfo(
-        cofs=351, commune="Bern", canton="Bern", country="Schweiz"
-    )
+    assert result == LocationInfo(cofs=351, commune="Bern", canton="Bern", country="Schweiz")
 
 
 @pytest.mark.integration
@@ -45,9 +43,7 @@ def test_get_location_info_wgs84_input_matches_lv95():
 @pytest.mark.integration
 def test_get_location_info_liechtenstein_point_has_no_canton():
     result = get_location_info(*_VADUZ_LV95, source=CRSType.LV95)
-    assert result == LocationInfo(
-        cofs=7001, commune="Vaduz", canton=None, country="Liechtenstein"
-    )
+    assert result == LocationInfo(cofs=7001, commune="Vaduz", canton=None, country="Liechtenstein")
 
 
 @pytest.mark.integration
