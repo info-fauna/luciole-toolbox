@@ -41,6 +41,21 @@ def test_convert_coordinates_dms_input_matches_decimal():
 
 
 @pytest.mark.integration
+@pytest.mark.parametrize(
+    "cx, cy",
+    [
+        ("46°00′49.13″", "8°57′39.57″"),
+        ("46° 00′ 49.13″ ", "8° 57′ 39.57″"),
+    ],
+    ids=["compact", "spaced-padded"],
+)
+def test_convert_coordinates_dms_without_hemisphere_matches_decimal(cx, cy):
+    result = convert_coordinates(cx, cy)
+    expected = convert_coordinates(46 + 49.13 / 3600, 8 + 57 / 60 + 39.57 / 3600)
+    assert result == pytest.approx(expected)
+
+
+@pytest.mark.integration
 def test_convert_coordinates_swapped_columns_match():
     normal = convert_coordinates(46.385018, 8.044591)
     swapped = convert_coordinates(8.044591, 46.385018)

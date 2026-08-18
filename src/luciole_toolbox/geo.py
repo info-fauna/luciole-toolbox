@@ -123,9 +123,13 @@ _DMS_PATTERN = re.compile(
 
 
 def _parse_dms(value):
-    """Parse a hemisphere-annotated value - '46° 23′ 06.06″ N', 'N46.38',
-    '8° 02.5′ E' - into (decimal_degrees, axis). None if no hemisphere
-    letter is present (not this format) or two are (contradictory input).
+    """Parse a degrees/minutes/seconds value into (decimal_degrees, axis).
+    A hemisphere letter ('46° 23′ 06.06″ N', 'N46.38', '8° 02.5′ E') fixes
+    the sign and the axis; without one ('46°00′49.13″') the value is
+    assumed positive and axis is None, left for the caller to resolve (e.g.
+    via magnitude, as `_detect_wgs84` already does for plain decimals).
+    None is returned if the value doesn't look like DMS at all, or carries
+    contradictory hemisphere letters on both ends.
     """
     if not isinstance(value, str):
         return None
@@ -138,9 +142,8 @@ def _parse_dms(value):
     if hem_pre and hem_post:
         return None
     hemisphere = hem_pre or hem_post
-    if hemisphere is None:
-        return None
-    hemisphere = hemisphere.upper()
+    if hemisphere is not None:
+        hemisphere = hemisphere.upper()
 
     def _num(group_name):
         raw = match.group(group_name)
@@ -150,7 +153,9 @@ def _parse_dms(value):
     if hemisphere in ("S", "W"):
         decimal = -decimal
 
-    axis = "lat" if hemisphere in ("N", "S") else "lon"
+    axis = None
+    if hemisphere is not None:
+        axis = "lat" if hemisphere in ("N", "S") else "lon"
     return decimal, axis
 
 
