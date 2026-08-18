@@ -353,6 +353,8 @@ def convert_coordinates(cx, cy, target=CRSType.LV03, source=None):
     detection. Left at its default (None), it is auto-detected via
     get_CRS; unrecognized input returns None rather than converting.
 
+    Values are rounded to 0 decimal for LV03 & LV95, 6 decimals for WGS84.
+
     An invalid `target` raises ValueError instead of returning None: it is
     a caller configuration mistake, not messy row data, so it should fail
     loudly rather than silently propagate through a pipeline.
