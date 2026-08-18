@@ -23,3 +23,6 @@ updates:
       - dependency-name: "pyproj"
         # pyproj 3.7 and later don't support python 3.9 anymore
         versions: [">= 3.7"]
+      - dependency-name: "requests"
+        # pyproj 3.7 and later don't support python 3.9 anymore
+        versions: [">= 2.33"]
