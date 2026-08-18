@@ -26,3 +26,6 @@ updates:
       - dependency-name: "requests"
         # requests 2.33 and later don't support python 3.9 anymore
         versions: [">= 2.33"]
+      - dependency-name: "pytest"
+        # pytest 9.0.0 and later don't support python 3.9 anymore
+        versions: [">= 9.0"]
