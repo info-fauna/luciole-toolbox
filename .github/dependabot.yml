@@ -9,16 +9,6 @@ updates:
       python-dependencies:
         patterns:
           - "*"
-
-  - package-ecosystem: "github-actions"
-    directory: "/"
-    schedule:
-      interval: "monthly"
-    open-pull-requests-limit: 5
-    groups:
-      github-actions:
-        patterns:
-          - "*"
     ignore:
       - dependency-name: "pyproj"
         # pyproj 3.7 and later don't support python 3.9 anymore
@@ -29,3 +19,13 @@ updates:
       - dependency-name: "pytest"
         # pytest 9.0.0 and later don't support python 3.9 anymore
         versions: [">= 9.0"]
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 5
+    groups:
+      github-actions:
+        patterns:
+          - "*"
