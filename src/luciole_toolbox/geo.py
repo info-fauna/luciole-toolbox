@@ -200,7 +200,8 @@ def _guess_axis(value):
 
 def _parse_wgs84_component(raw):
     """Return (value, axis) where axis is 'lat'/'lon' (from a DMS hemisphere
-    letter) or None (plain decimal, axis not yet known)."""
+    letter) or None (plain decimal, or hemisphere-less DMS - axis not yet
+    known)."""
     dms = _parse_dms(raw)
     if dms is not None:
         return dms
