@@ -50,7 +50,11 @@ def test_get_CRS_dms(cx, cy):
         ("46° 00′ 49.13″ ", "8° 57′ 39.57″"),
         ("8°57′39.57″", "46°00′49.13″"),
     ],
-    ids=["dms-no-hemisphere-compact", "dms-no-hemisphere-spaced-padded", "dms-no-hemisphere-swapped"],
+    ids=[
+        "dms-no-hemisphere-compact",
+        "dms-no-hemisphere-spaced-padded",
+        "dms-no-hemisphere-swapped",
+    ],
 )
 def test_get_CRS_dms_without_hemisphere(cx, cy):
     assert get_CRS(cx, cy) == CRSType.WGS84
