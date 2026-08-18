@@ -334,6 +334,18 @@ def _convert_lv(cx, cy, source, target):
     return _get_transformer(source, target).transform(x, y)
 
 
+_WGS84_DECIMALS = 6
+
+
+def _round_result(coords, target):
+    if coords is None:
+        return None
+    a, b = coords
+    if target == CRSType.WGS84:
+        return round(a, _WGS84_DECIMALS), round(b, _WGS84_DECIMALS)
+    return round(a), round(b)
+
+
 def convert_coordinates(cx, cy, target=CRSType.LV03, source=None):
     """Convert a (cx, cy) pair to `target` (CRSType.LV03 by default).
 
@@ -354,14 +366,16 @@ def convert_coordinates(cx, cy, target=CRSType.LV03, source=None):
     source = source or get_CRS(cx, cy)
 
     if source in (CRSType.LV03, CRSType.LV95):
-        return _convert_lv(cx, cy, source, target)
+        result = _convert_lv(cx, cy, source, target)
+        return _round_result(result, target)
 
     if source == CRSType.WGS84:
         resolved = _detect_wgs84(cx, cy)
         if resolved is None:
             return None
         lat, lon = resolved
-        return _get_transformer(CRSType.WGS84, target).transform(lat, lon)
+        result = _get_transformer(CRSType.WGS84, target).transform(lat, lon)
+        return _round_result(result, target)
 
     return None
 
