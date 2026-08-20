@@ -72,15 +72,23 @@ def get_CNHA(cx, cy):
 
 
 class CRSType(Enum):
+    """Define the supported coordinate reference systems (CRS).
+
+    - **WGS84**: Geodetic CRS, EPSG:4326 (lat/lon).
+    - **LV03**: Swiss projected CRS, EPSG:21781.
+    - **LV95**: Swiss projected CRS, EPSG:2056.
+    """
     WGS84 = "WGS84"
     LV03 = "LV03"
     LV95 = "LV95"
 
     @property
     def epsg(self):
+        """Return the EPSG code of this CRS."""
         return _CRS_EPSG[self]
 
     def round_to_conventional_precision(self, coords):
+        """Snap a coordinate pair to this CRS's conventional precision."""
         if coords is None:
             return None
 
@@ -96,6 +104,7 @@ class CRSType(Enum):
 
     @classmethod
     def from_epsg_code(cls, epsg_code):
+        """Return the CRS corresponding to the given EPSG code."""
         return _EPSG_CRS[epsg_code]
 
 
