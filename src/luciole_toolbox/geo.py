@@ -80,6 +80,20 @@ class CRSType(Enum):
     def epsg(self):
         return _CRS_EPSG[self]
 
+    def round_to_conventional_precision(self, coords):
+        if coords is None:
+            return None
+
+        a, b = coords
+        num_decimals = _CRS_DECIMALS[self]
+        a = round(a, num_decimals)
+        b = round(b, num_decimals)
+
+        if num_decimals == 0:
+            a, b = int(a), int(b)
+
+        return a, b
+
     @classmethod
     def from_epsg_code(cls, epsg_code):
         return _EPSG_CRS[epsg_code]
@@ -90,8 +104,12 @@ _CRS_EPSG = {
     CRSType.LV03: "EPSG:21781",
     CRSType.LV95: "EPSG:2056",
 }
-
 _EPSG_CRS = {epsg_code: crs for crs, epsg_code in _CRS_EPSG.items()}
+_CRS_DECIMALS = {
+    CRSType.WGS84: 6,
+    CRSType.LV03: 0,
+    CRSType.LV95: 0,
+}
 
 # Switzerland and immediate neighbours, decimal degrees. Used to resolve
 # which of cx/cy is latitude vs longitude when no hemisphere letter is given
@@ -334,18 +352,6 @@ def _convert_lv(cx, cy, source, target):
     return _get_transformer(source, target).transform(x, y)
 
 
-_WGS84_DECIMALS = 6
-
-
-def _round_result(coords, target):
-    if coords is None:
-        return None
-    a, b = coords
-    if target == CRSType.WGS84:
-        return round(a, _WGS84_DECIMALS), round(b, _WGS84_DECIMALS)
-    return round(a), round(b)
-
-
 def convert_coordinates(cx, cy, target=CRSType.LV03, source=None):
     """Convert a (cx, cy) pair to `target` (CRSType.LV03 by default).
 
@@ -369,17 +375,16 @@ def convert_coordinates(cx, cy, target=CRSType.LV03, source=None):
 
     if source in (CRSType.LV03, CRSType.LV95):
         result = _convert_lv(cx, cy, source, target)
-        return _round_result(result, target)
-
-    if source == CRSType.WGS84:
+    elif source == CRSType.WGS84:
         resolved = _detect_wgs84(cx, cy)
         if resolved is None:
             return None
         lat, lon = resolved
         result = _get_transformer(CRSType.WGS84, target).transform(lat, lon)
-        return _round_result(result, target)
+    else:
+        result = None
 
-    return None
+    return target.round_to_conventional_precision(result)
 
 
 # Switzerland/Liechtenstein bounding box in LV95 - the same figures
