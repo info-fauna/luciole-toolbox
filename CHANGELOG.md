@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-08-20
+
+First version of the info fauna luciole toolbox !
+
 ### Changed
 
 - License changed from MIT to LGPL-3.0-or-later.
