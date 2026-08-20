@@ -96,9 +96,9 @@ def test_convert_coordinates_autodetects_lv_source(cx, cy, source, target):
 @pytest.mark.parametrize(
     "cx, cy, source, target, expected",
     [
-        ("646614.59", "137252.17", CRSType.LV03, CRSType.LV95, (2646614.59, 1137252.17)),
-        (2646614.59, 1137252.17, CRSType.LV95, CRSType.LV03, (646614.84, 137252.48)),
-        ("646'614.59", "137'252.17", CRSType.LV03, CRSType.LV95, (2646614.59, 1137252.17)),
+        ("646614.59", "137252.17", CRSType.LV03, CRSType.LV95, (2646615, 1137252)),
+        (2646614.59, 1137252.17, CRSType.LV95, CRSType.LV03, (646615, 137252)),
+        ("646'614.59", "137'252.17", CRSType.LV03, CRSType.LV95, (2646615, 1137252)),
     ],
     ids=["lv03-to-lv95", "lv95-to-lv03", "lv03-thousand-separators"],
 )
@@ -109,15 +109,15 @@ def test_convert_coordinates_lv03_lv95_offset(cx, cy, source, target, expected):
 
 
 @pytest.mark.parametrize(
-    "cx, cy, source, target",
+    "cx, cy, source, target, expected",
     [
-        (646614.59, 137252.17, CRSType.LV03, CRSType.LV03),
-        (2646614.59, 1137252.17, CRSType.LV95, CRSType.LV95),
+        (646614.59, 137252.17, CRSType.LV03, CRSType.LV03, (646615, 137252)),
+        (2646614.59, 1137252.17, CRSType.LV95, CRSType.LV95, (2646615, 1137252)),
     ],
     ids=["lv03-identity", "lv95-identity"],
 )
-def test_convert_coordinates_lv_identity(cx, cy, source, target):
-    assert convert_coordinates(cx, cy, target=target, source=source) == pytest.approx((cx, cy))
+def test_convert_coordinates_lv_identity(cx, cy, source, target, expected):
+    assert convert_coordinates(cx, cy, target=target, source=source) == expected
 
 
 @pytest.mark.parametrize(
@@ -180,3 +180,25 @@ def test_convert_coordinates_lv03_to_lv95_reference(x, y, expected):
 def test_convert_coordinates_lv95_to_wgs84_reference(x, y, expected):
     result = convert_coordinates(x, y, target=CRSType.WGS84, source=CRSType.LV95)
     assert result == pytest.approx(expected, rel=1e-5)
+
+
+@pytest.mark.parametrize(
+    "x, y, expected",
+    [
+        (2583097.5, 1212273.0, (47.061262, 7.21614)),
+        (2617741.6, 1268431.6, (47.566354, 7.67438)),
+    ],
+    ids=["point-1", "point-2"],
+)
+@pytest.mark.integration
+def test_convert_coordinates_wgs84_rounds_to_6_decimals(x, y, expected):
+    result = convert_coordinates(x, y, target=CRSType.WGS84, source=CRSType.LV95)
+    assert result == expected
+
+
+@pytest.mark.integration
+def test_convert_coordinates_wgs84_identity_rounds_to_6_decimals():
+    result = convert_coordinates(
+        46.3850181234, 8.0445911234, target=CRSType.WGS84, source=CRSType.WGS84
+    )
+    assert result == (46.385018, 8.044591)

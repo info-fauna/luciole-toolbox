@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Changed
 
 - License changed from MIT to LGPL-3.0-or-later.
+- `geo.convert_coordinates` round LV03 & LV95 values to 0 decimal, WGS84
+  to 6 decimals.
 
 ## [0.1.0] - 2026-08-10
 
