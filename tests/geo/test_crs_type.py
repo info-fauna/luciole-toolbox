@@ -52,5 +52,4 @@ def test_from_epsg_code_unknown_raises_key_error():
     ids=["wgs84_1", "wgs84_2", "lv03_1", "lv03_2", "lv95_1", "lv95_2"],
 )
 def test_round_to_conventional_precision(crs, source_coords, expected_coords):
-    print('AAA', source_coords, expected_coords)
     assert crs.round_to_conventional_precision(source_coords) == expected_coords

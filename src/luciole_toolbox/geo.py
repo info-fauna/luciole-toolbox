@@ -78,6 +78,7 @@ class CRSType(Enum):
     - **LV03**: Swiss projected CRS, EPSG:21781.
     - **LV95**: Swiss projected CRS, EPSG:2056.
     """
+
     WGS84 = "WGS84"
     LV03 = "LV03"
     LV95 = "LV95"
