@@ -94,7 +94,7 @@ def test_get_location_info_uses_injected_session():
     assert get_location_info(*_BERN_LV95, source=CRSType.LV95, session=session) is None
     assert len(session.calls) == 1
     _, params, _ = session.calls[0]
-    assert params["geometry"] == "2600000.0,1200000.0"
+    assert params["geometry"] == "2600000,1200000"
 
 
 def test_get_location_info_propagates_http_errors():

@@ -72,16 +72,40 @@ def get_CNHA(cx, cy):
 
 
 class CRSType(Enum):
+    """Define the supported coordinate reference systems (CRS).
+
+    - **WGS84**: Geodetic CRS, EPSG:4326 (lat/lon).
+    - **LV03**: Swiss projected CRS, EPSG:21781.
+    - **LV95**: Swiss projected CRS, EPSG:2056.
+    """
+
     WGS84 = "WGS84"
     LV03 = "LV03"
     LV95 = "LV95"
 
     @property
     def epsg(self):
+        """Return the EPSG code of this CRS."""
         return _CRS_EPSG[self]
+
+    def round_to_conventional_precision(self, coords):
+        """Snap a coordinate pair to this CRS's conventional precision."""
+        if coords is None:
+            return None
+
+        a, b = coords
+        num_decimals = _CRS_DECIMALS[self]
+        a = round(a, num_decimals)
+        b = round(b, num_decimals)
+
+        if num_decimals == 0:
+            a, b = int(a), int(b)
+
+        return a, b
 
     @classmethod
     def from_epsg_code(cls, epsg_code):
+        """Return the CRS corresponding to the given EPSG code."""
         return _EPSG_CRS[epsg_code]
 
 
@@ -90,8 +114,12 @@ _CRS_EPSG = {
     CRSType.LV03: "EPSG:21781",
     CRSType.LV95: "EPSG:2056",
 }
-
 _EPSG_CRS = {epsg_code: crs for crs, epsg_code in _CRS_EPSG.items()}
+_CRS_DECIMALS = {
+    CRSType.WGS84: 6,
+    CRSType.LV03: 0,
+    CRSType.LV95: 0,
+}
 
 # Switzerland and immediate neighbours, decimal degrees. Used to resolve
 # which of cx/cy is latitude vs longitude when no hemisphere letter is given
@@ -347,6 +375,8 @@ def convert_coordinates(cx, cy, target=CRSType.LV03, source=None):
     detection. Left at its default (None), it is auto-detected via
     get_CRS; unrecognized input returns None rather than converting.
 
+    Values are rounded to 0 decimal for LV03 & LV95, 6 decimals for WGS84.
+
     An invalid `target` raises ValueError instead of returning None: it is
     a caller configuration mistake, not messy row data, so it should fail
     loudly rather than silently propagate through a pipeline.
@@ -360,16 +390,17 @@ def convert_coordinates(cx, cy, target=CRSType.LV03, source=None):
     source = source or get_CRS(cx, cy)
 
     if source in (CRSType.LV03, CRSType.LV95):
-        return _convert_lv(cx, cy, source, target)
-
-    if source == CRSType.WGS84:
+        result = _convert_lv(cx, cy, source, target)
+    elif source == CRSType.WGS84:
         resolved = _detect_wgs84(cx, cy)
         if resolved is None:
             return None
         lat, lon = resolved
-        return _get_transformer(CRSType.WGS84, target).transform(lat, lon)
+        result = _get_transformer(CRSType.WGS84, target).transform(lat, lon)
+    else:
+        result = None
 
-    return None
+    return target.round_to_conventional_precision(result)
 
 
 # Switzerland/Liechtenstein bounding box in LV95 - the same figures
