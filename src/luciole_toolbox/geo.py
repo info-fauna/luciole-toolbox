@@ -137,13 +137,15 @@ _NUMBER = r"\d+(?:[.,]\d+)?"
 # Hemisphere may be a prefix ("N 46...") or a suffix ("...46 N"), the degree
 # symbol and the minute/second parts are all optional (covers a bare
 # "46.38N" as well as DM - decimal minutes, no seconds - and full DMS), and
-# degree/minute/second numbers may use a comma decimal separator.
+# degree/minute/second numbers may use a comma decimal separator. Seconds may
+# also be marked by doubling the minute character ('' or ′′) instead of a
+# proper double-quote/double-prime (e.g. "46°42'43.72''").
 _DMS_PATTERN = re.compile(
     rf"""^\s*
     (?P<hem_pre>[NSEWnsew])?\s*
     (?P<deg>{_NUMBER})\s*[°º]?\s*
     (?:(?P<min>{_NUMBER})\s*['’′]\s*)?
-    (?:(?P<sec>{_NUMBER})\s*["”″]\s*)?
+    (?:(?P<sec>{_NUMBER})\s*(?:["”″]|['’′]{{2}})\s*)?
     (?P<hem_post>[NSEWnsew])?\s*$
     """,
     re.VERBOSE,
