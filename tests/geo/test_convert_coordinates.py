@@ -56,6 +56,24 @@ def test_convert_coordinates_dms_without_hemisphere_matches_decimal(cx, cy):
 
 
 @pytest.mark.integration
+@pytest.mark.parametrize(
+    "cx, cy, lat, lon",
+    [
+        ("46°42'43.72''", "8°57'39.57''", 46 + 42 / 60 + 43.72 / 3600, 8 + 57 / 60 + 39.57 / 3600),
+        ("46°37′5.08′′", "8°57′39.57′′", 46 + 37 / 60 + 5.08 / 3600, 8 + 57 / 60 + 39.57 / 3600),
+        ("46°37’5.08’’", "8°57’39.57’’", 46 + 37 / 60 + 5.08 / 3600, 8 + 57 / 60 + 39.57 / 3600),
+    ],
+    ids=["doubled-apostrophe-seconds", "doubled-prime-seconds", "doubled-curve-apostrophe-seconds"],
+)
+def test_convert_coordinates_dms_doubled_minute_mark_as_seconds(cx, cy, lat, lon):
+    """Some sources (e.g. copy-pasted from GPS devices) mark seconds with two
+    minute characters ('' or ′′) instead of a proper double-quote/double-prime."""
+    result = convert_coordinates(cx, cy)
+    expected = convert_coordinates(lat, lon)
+    assert result == pytest.approx(expected)
+
+
+@pytest.mark.integration
 def test_convert_coordinates_swapped_columns_match():
     normal = convert_coordinates(46.385018, 8.044591)
     swapped = convert_coordinates(8.044591, 46.385018)

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- `geo` module: support DMS format using doubled apostrophe (`['’′]{2}`)
+
 ## [1.0.0] - 2026-08-20
 
 First version of the info fauna luciole toolbox !
