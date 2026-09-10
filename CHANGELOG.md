@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - `geo` module: `get_altitude` calls swisstopo API to [Get Point Height](https://docs.geo.admin.ch/access-data/get-point-height.html)
 
+### Fixed
+
+- `geo` module: support DMS format using doubled apostrophe (`['’′]{2}`)
+
 ## [1.0.0] - 2026-08-20
 
 First version of the info fauna luciole toolbox !
