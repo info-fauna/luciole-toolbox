@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `geo` module: `get_altitude` calls swisstopo API to [Get Point Height](https://docs.geo.admin.ch/access-data/get-point-height.html)
+
 ### Fixed
 
 - `geo` module: support DMS format using doubled apostrophe (`['’′]{2}`)
