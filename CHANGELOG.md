@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-09-17
+
 ### Added
 
 - `geo` module: `get_altitude` calls swisstopo API to [Get Point Height](https://docs.geo.admin.ch/access-data/get-point-height.html)
