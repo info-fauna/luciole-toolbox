@@ -529,10 +529,13 @@ def get_altitude(cx, cy, source=None, session=None):
 
     cx/cy are detected/converted the same way as convert_coordinates
     (`source` skips detection). Returns None if the coordinate can't be
-    resolved. Unlike get_location_info, a resolved point outside the
-    height model's coverage is not reported as None: swisstopo's API
-    answers with an HTTP 400, which - like any other network error -
-    propagates to the caller rather than being swallowed.
+    resolved, or if the height API rejects the query with an HTTP 400 -
+    in practice this means the point falls outside the height model's
+    coverage, so like get_location_info, a resolved point with no data is
+    None rather than an exception, even though swisstopo signals that case
+    as an HTTP 400 here (vs. an empty result set for get_location_info).
+    Any other HTTP error still propagates to the caller rather than being
+    swallowed.
     """
     coords = convert_coordinates(cx, cy, target=CRSType.LV95, source=source)
     if coords is None:
@@ -548,6 +551,8 @@ def get_altitude(cx, cy, source=None, session=None):
     response = (session or _DEFAULT_SESSION).get(
         _SWISSTOPO_POINT_HEIGHT_URL, params=params, timeout=10
     )
+    if response.status_code == 400:
+        return None
     response.raise_for_status()
 
     return float(response.json()["height"])

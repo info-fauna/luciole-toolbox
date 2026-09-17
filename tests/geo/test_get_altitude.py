@@ -10,8 +10,9 @@ _BERN_WGS84 = (46.9510827718711, 7.43863242087181)
 _BERN_HEIGHT = 555.5
 
 # Well outside the DHM25 model's coverage - the height service itself
-# rejects the query (400), unlike get_location_info which just finds no
-# matching boundary.
+# rejects the query with an HTTP 400, unlike get_location_info's
+# underlying API, which just finds no matching boundary and returns an
+# empty (200) result set.
 _OUT_OF_BOUNDS_LV95 = (0, 0)
 
 
@@ -40,9 +41,8 @@ def test_get_altitude_wgs84_input_matches_lv95():
 
 
 @pytest.mark.integration
-def test_get_altitude_out_of_bounds_raises_http_error():
-    with pytest.raises(requests.HTTPError):
-        get_altitude(*_OUT_OF_BOUNDS_LV95, source=CRSType.LV95)
+def test_get_altitude_out_of_bounds_returns_none():
+    assert get_altitude(*_OUT_OF_BOUNDS_LV95, source=CRSType.LV95) is None
 
 
 @pytest.mark.parametrize(
@@ -97,3 +97,11 @@ def test_get_altitude_propagates_http_errors():
     session = _FakeSession({}, status_code=500)
     with pytest.raises(requests.HTTPError):
         get_altitude(*_BERN_LV95, source=CRSType.LV95, session=session)
+
+
+def test_get_altitude_bad_request_returns_none():
+    session = _FakeSession(
+        {"error": {"code": 400, "message": "Query is out of bounds"}, "success": False},
+        status_code=400,
+    )
+    assert get_altitude(*_BERN_LV95, source=CRSType.LV95, session=session) is None
