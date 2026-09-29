@@ -296,10 +296,13 @@ def _guess_lv_slot(value):
     return matches[0] if len(matches) == 1 else None
 
 
-def _detect_lv(cx, cy):
-    """Return CRSType.LV03 or CRSType.LV95 if cx/cy jointly form a valid
-    planar easting/northing pair in that system, else None. Tolerant of
-    swapped cx/cy, same as _detect_wgs84."""
+def _resolve_lv(cx, cy, crs=None):
+    """Return (crs, easting, northing) if cx/cy jointly form a valid planar
+    easting/northing pair in LV03 or LV95, else None. Tolerant of swapped
+    cx/cy, same as _detect_wgs84: the pair comes back reordered as
+    (easting, northing). If `crs` is given, a pair falling in the other
+    system's ranges is rejected rather than accepted.
+    """
     x = _parse_planar_meters(cx)
     y = _parse_planar_meters(cy)
     if x is None or y is None:
@@ -314,8 +317,17 @@ def _detect_lv(cx, cy):
     y_crs, y_axis = y_slot
     if x_crs != y_crs or x_axis == y_axis:
         return None
+    if crs is not None and x_crs != crs:
+        return None
 
-    return x_crs
+    return (x_crs, x, y) if x_axis == "easting" else (x_crs, y, x)
+
+
+def _detect_lv(cx, cy):
+    """Return CRSType.LV03 or CRSType.LV95 if cx/cy jointly form a valid
+    planar easting/northing pair in that system, else None."""
+    resolved = _resolve_lv(cx, cy)
+    return resolved[0] if resolved else None
 
 
 def get_CRS(cx, cy):
@@ -358,18 +370,6 @@ def _parse_planar_meters(value):
         return None
 
 
-def _convert_lv(cx, cy, source, target):
-    x = _parse_planar_meters(cx)
-    y = _parse_planar_meters(cy)
-    if x is None or y is None:
-        return None
-
-    if source == target:
-        return x, y
-
-    return _get_transformer(source, target).transform(x, y)
-
-
 def convert_coordinates(cx, cy, target=CRSType.LV03, source=None):
     """Convert a (cx, cy) pair to `target` (CRSType.LV03 by default).
 
@@ -392,7 +392,14 @@ def convert_coordinates(cx, cy, target=CRSType.LV03, source=None):
     source = source or get_CRS(cx, cy)
 
     if source in (CRSType.LV03, CRSType.LV95):
-        result = _convert_lv(cx, cy, source, target)
+        resolved = _resolve_lv(cx, cy, crs=source)
+        if resolved is None:
+            return None
+        _, easting, northing = resolved
+        if source == target:
+            result = easting, northing
+        else:
+            result = _get_transformer(source, target).transform(easting, northing)
     elif source == CRSType.WGS84:
         resolved = _detect_wgs84(cx, cy)
         if resolved is None:
