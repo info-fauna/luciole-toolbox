@@ -12,6 +12,8 @@ license = "LGPL-3.0-or-later"
 authors = [
     { name = "Kim Biloni", email = "kim.biloni@infofauna.ch" },
     { name = "Jules Gottraux", email = "jules.gottraux@infofauna.ch" },
+    { name = "Kilian Junker", email = "kilian.junker@infofauna.ch" },
+    { name = "Lisa Fisler", email = "lisa.fisler@infofauna.ch" },
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
