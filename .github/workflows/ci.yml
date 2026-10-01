@@ -37,8 +37,18 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
-      - run: pip install ".[dev]"
+      - run: pip install -e ".[dev]"
       - run: pytest -m "not integration"
+      - name: Coverage summary
+        if: matrix.python-version == '3.12'
+        env:
+          COVERAGE_THRESHOLD: 85
+        run: |
+          coverage report --format=markdown >> "$GITHUB_STEP_SUMMARY"
+          total=$(coverage report --format=total)
+          if [ "$total" -lt "$COVERAGE_THRESHOLD" ]; then
+            echo "::warning title=Low coverage::Coverage is ${total}%, below the ${COVERAGE_THRESHOLD}% threshold"
+          fi
 
   ci-status:
     if: always()
