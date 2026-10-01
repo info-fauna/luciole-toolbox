@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- `geo.convert_coordinates` handles x, y-axis swap for LV03 & LV95
+
 ## [1.1.0] - 2026-09-17
 
 ### Added
