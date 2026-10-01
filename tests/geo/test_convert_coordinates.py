@@ -189,6 +189,18 @@ def test_convert_coordinates_lv_explicit_source_mismatch_returns_none(cx, cy, so
 
 
 @pytest.mark.parametrize(
+    "cx, cy, source",
+    [
+        (420000, 137000, CRSType.LV03),
+        (2420000, 1137000, CRSType.LV95),
+    ],
+    ids=["lv03-easting-below-margin", "lv95-easting-below-margin"],
+)
+def test_convert_coordinates_lv_explicit_source_out_of_range_returns_none(cx, cy, source):
+    assert convert_coordinates(cx, cy, target=CRSType.LV95, source=source) is None
+
+
+@pytest.mark.parametrize(
     "cx, cy, source, target, expected",
     [
         (646614.59, 137252.17, CRSType.LV03, CRSType.LV03, (646615, 137252)),

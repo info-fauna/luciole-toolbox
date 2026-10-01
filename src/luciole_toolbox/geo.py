@@ -374,8 +374,10 @@ def convert_coordinates(cx, cy, target=CRSType.LV03, source=None):
     """Convert a (cx, cy) pair to `target` (CRSType.LV03 by default).
 
     `source` may be given explicitly as CRSType.WGS84/LV03/LV95 to skip
-    detection. Left at its default (None), it is auto-detected via
-    get_CRS; unrecognized input returns None rather than converting.
+    auto-detection; the values must still fall within that system's valid
+    ranges (swapped cx/cy are tolerated), otherwise None is returned. Left
+    at its default (None), it is auto-detected via get_CRS; unrecognized
+    input returns None rather than converting.
 
     Values are rounded to 0 decimal for LV03 & LV95, 6 decimals for WGS84.
 
