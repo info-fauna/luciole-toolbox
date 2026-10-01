@@ -65,6 +65,7 @@ addopts = "--cov=luciole_toolbox --cov-report=term-missing"
 [tool.coverage.run]
 source = ["src/luciole_toolbox"]
 relative_files = true
+branch = true
 omit = ["src/luciole_toolbox/_version.py"]
 
 [tool.coverage.report]
