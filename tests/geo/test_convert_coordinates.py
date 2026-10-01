@@ -126,19 +126,78 @@ def test_convert_coordinates_autodetects_lv_source(cx, cy, source, target):
     assert autodetected == pytest.approx(explicit)
 
 
+# Expected values checked against swisstopo REFRAME
+# (geodesy.geo.admin.ch/reframe): LV03 -> LV95 is not a pure
+# +2,000,000/+1,000,000 offset - the CHENyx06 correction moves this point by
+# ~0.27 m easting / ~0.33 m northing, enough to flip the rounded easting.
+# Compared exactly (no approx): results are rounded to whole metres, and the
+# default relative tolerance would hide a 1-2 m error at this magnitude.
 @pytest.mark.parametrize(
     "cx, cy, source, target, expected",
     [
-        ("646614.59", "137252.17", CRSType.LV03, CRSType.LV95, (2646615, 1137252)),
+        ("646614.59", "137252.17", CRSType.LV03, CRSType.LV95, (2646614, 1137252)),
         (2646614.59, 1137252.17, CRSType.LV95, CRSType.LV03, (646615, 137252)),
-        ("646'614.59", "137'252.17", CRSType.LV03, CRSType.LV95, (2646615, 1137252)),
+        ("646'614.59", "137'252.17", CRSType.LV03, CRSType.LV95, (2646614, 1137252)),
     ],
     ids=["lv03-to-lv95", "lv95-to-lv03", "lv03-thousand-separators"],
 )
 @pytest.mark.integration
 def test_convert_coordinates_lv03_lv95_offset(cx, cy, source, target, expected):
     result = convert_coordinates(cx, cy, target=target, source=source)
-    assert result == pytest.approx(expected)
+    assert result == expected
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "cx, cy, source, target",
+    [
+        (646614.59, 137252.17, None, CRSType.LV95),
+        (646614.59, 137252.17, CRSType.LV03, CRSType.LV95),
+        (2646614.59, 1137252.17, None, CRSType.LV03),
+        (2646614.59, 1137252.17, CRSType.LV95, CRSType.LV03),
+        (646614.59, 137252.17, CRSType.LV03, CRSType.LV03),
+        (2646614.59, 1137252.17, CRSType.LV95, CRSType.LV95),
+        (646614.59, 137252.17, None, CRSType.WGS84),
+    ],
+    ids=[
+        "lv03-autodetected",
+        "lv03-explicit",
+        "lv95-autodetected",
+        "lv95-explicit",
+        "lv03-identity",
+        "lv95-identity",
+        "lv03-to-wgs84",
+    ],
+)
+def test_convert_coordinates_lv_swapped_columns_match(cx, cy, source, target):
+    normal = convert_coordinates(cx, cy, target=target, source=source)
+    swapped = convert_coordinates(cy, cx, target=target, source=source)
+    assert normal is not None
+    assert swapped == normal
+
+
+@pytest.mark.parametrize(
+    "cx, cy, source",
+    [
+        (2646614.59, 1137252.17, CRSType.LV03),
+        (646614.59, 137252.17, CRSType.LV95),
+    ],
+    ids=["lv95-values-labelled-lv03", "lv03-values-labelled-lv95"],
+)
+def test_convert_coordinates_lv_explicit_source_mismatch_returns_none(cx, cy, source):
+    assert convert_coordinates(cx, cy, target=CRSType.LV95, source=source) is None
+
+
+@pytest.mark.parametrize(
+    "cx, cy, source",
+    [
+        (420000, 137000, CRSType.LV03),
+        (2420000, 1137000, CRSType.LV95),
+    ],
+    ids=["lv03-easting-below-margin", "lv95-easting-below-margin"],
+)
+def test_convert_coordinates_lv_explicit_source_out_of_range_returns_none(cx, cy, source):
+    assert convert_coordinates(cx, cy, target=CRSType.LV95, source=source) is None
 
 
 @pytest.mark.parametrize(
