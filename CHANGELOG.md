@@ -7,12 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-10-05
+
 ### Fixed
 
 - `geo.convert_coordinates` no longer returns wrong results when LV03/LV95 easting/northing are passed in swapped order (also affects `is_in_switzerland_bbox`, `get_location_info` and `get_altitude`)
-
-### Changed
-
 - `geo.convert_coordinates` with an explicit LV03/LV95 `source` now returns `None` for values outside that system's valid ranges, instead of converting them blindly
 
 ## [1.1.0] - 2026-09-17
