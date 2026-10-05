@@ -26,6 +26,9 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
     strategy:
       fail-fast: false
       matrix:
@@ -37,8 +40,25 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
-      - run: pip install ".[dev]"
+      - run: pip install -e ".[dev]"
       - run: pytest -m "not integration"
+      - name: Coverage comment
+        id: coverage_comment
+        if: matrix.python-version == '3.12'
+        uses: py-cov-action/python-coverage-comment-action@5d8df5979747514c914e1c5a12335a7cf9a2745f # v4.1
+        with:
+          GITHUB_TOKEN: ${{ github.token }}
+          MINIMUM_GREEN: 85
+          MINIMUM_ORANGE: 70
+          ANNOTATE_MISSING_LINES: true
+          ANNOTATION_TYPE: notice
+      # Fork PRs get a read-only token; coverage.yml posts the comment from this artifact.
+      - name: Store coverage comment for fork PRs
+        if: steps.coverage_comment.outputs.COMMENT_FILE_WRITTEN == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: python-coverage-comment-action
+          path: python-coverage-comment-action.txt
 
   ci-status:
     if: always()
