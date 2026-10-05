@@ -205,8 +205,8 @@ def _parse_wgs84_component(raw):
     return decimal, None
 
 
-def _detect_wgs84(cx, cy):
-    """Return (lat, lon) if cx/cy jointly form a valid WGS84 pair, else None.
+def _resolve_wgs84(cx, cy):
+    """Return (CRSType.WGS84, lat, lon) if cx/cy jointly form a valid WGS84 pair, else None.
 
     Tolerant of swapped cx/cy: axis is read from the DMS hemisphere letter
     when present, otherwise resolved from the (non-overlapping) lat/lon
@@ -228,7 +228,9 @@ def _detect_wgs84(cx, cy):
     if x_axis is None or y_axis is None or x_axis == y_axis:
         return None
 
-    return (x_value, y_value) if x_axis == "lat" else (y_value, x_value)
+    lat, lon = (x_value, y_value) if x_axis == "lat" else (y_value, x_value)
+
+    return CRSType.WGS84, lat, lon
 
 
 # Native LV03/LV95 easting/northing bounds (metres), per swisstopo's
@@ -259,7 +261,7 @@ def _guess_lv_slot(value):
     return matches[0] if len(matches) == 1 else None
 
 
-def _resolve_lv(cx, cy, crs=None):
+def _resolve_lv(cx, cy):
     """Return (crs, easting, northing) if cx/cy jointly form a valid planar
     easting/northing pair in LV03 or LV95, else None. Tolerant of swapped
     cx/cy, same as _detect_wgs84: the pair comes back reordered as
@@ -280,17 +282,22 @@ def _resolve_lv(cx, cy, crs=None):
     y_crs, y_axis = y_slot
     if x_crs != y_crs or x_axis == y_axis:
         return None
-    if crs is not None and x_crs != crs:
-        return None
 
     return (x_crs, x, y) if x_axis == "easting" else (x_crs, y, x)
 
 
-def _detect_lv(cx, cy):
-    """Return CRSType.LV03 or CRSType.LV95 if cx/cy jointly form a valid
-    planar easting/northing pair in that system, else None."""
-    resolved = _resolve_lv(cx, cy)
-    return resolved[0] if resolved else None
+def _resolve_coordinate_pair(cx, cy) -> tuple[CRSType, float, float] | None:
+    """Detect and rearrange the coordinate pair into (crs, a, b), or None if it cannot be resolved.
+
+    `a, b` are in that CRS's own axis order: (easting, northing) for
+    LV03/LV95, (lat, lon) for WGS84. Swapped cx/cy
+    are reordered. Out-of-range or unrecognized input is None.
+    """
+    resolved = _resolve_wgs84(cx, cy)
+    if resolved is None:
+        resolved = _resolve_lv(cx, cy)
+
+    return resolved
 
 
 def get_CRS(cx, cy):
@@ -300,9 +307,11 @@ def get_CRS(cx, cy):
     magnitude ranges - see _LV_SLOTS). Returns None for any other or
     unrecognized format.
     """
-    if _detect_wgs84(cx, cy) is not None:
-        return CRSType.WGS84
-    return _detect_lv(cx, cy)
+    resolved = _resolve_coordinate_pair(cx, cy)
+    if resolved is None:
+        return None
+
+    return resolved[0]
 
 
 def get_CKM2(cx, cy):
@@ -392,24 +401,15 @@ def convert_coordinates(cx, cy, target=CRSType.LV03, source=None):
         )
 
     source = source or get_CRS(cx, cy)
+    resolved = _resolve_coordinate_pair(cx, cy)
+    if resolved is None or resolved[0] != source:
+        return None
 
-    if source in (CRSType.LV03, CRSType.LV95):
-        resolved = _resolve_lv(cx, cy, crs=source)
-        if resolved is None:
-            return None
-        _, easting, northing = resolved
-        if source == target:
-            result = easting, northing
-        else:
-            result = _get_transformer(source, target).transform(easting, northing)
-    elif source == CRSType.WGS84:
-        resolved = _detect_wgs84(cx, cy)
-        if resolved is None:
-            return None
-        lat, lon = resolved
-        result = _get_transformer(CRSType.WGS84, target).transform(lat, lon)
+    crs, a, b = resolved
+    if crs == target:
+        result = a, b
     else:
-        result = None
+        result = _get_transformer(source, target).transform(a, b)
 
     return target.round_to_conventional_precision(result)
 
