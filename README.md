@@ -1,6 +1,7 @@
 # luciole-toolbox
 
 [![CI](https://github.com/info-fauna/luciole-toolbox/actions/workflows/ci.yml/badge.svg)](https://github.com/info-fauna/luciole-toolbox/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/info-fauna/luciole-toolbox/python-coverage-comment-action-data/endpoint.json)](https://htmlpreview.github.io/?https://github.com/info-fauna/luciole-toolbox/blob/python-coverage-comment-action-data/htmlcov/index.html)
 [![PyPI](https://img.shields.io/pypi/v/luciole-toolbox.svg)](https://pypi.org/project/luciole-toolbox/)
 [![License](https://img.shields.io/pypi/l/luciole-toolbox.svg)](LICENSE)
 
