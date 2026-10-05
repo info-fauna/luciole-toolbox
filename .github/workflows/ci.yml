@@ -42,6 +42,13 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - run: pip install -e ".[dev]"
       - run: pytest -m "not integration"
+      # Integration tests are the only ones exercising the pyproj transforms;
+      # append them to the measurement so coverage reflects them. Network
+      # flakiness must not fail the PR - integration.yml is the real gate.
+      - name: Integration tests (coverage only)
+        if: matrix.python-version == '3.12'
+        continue-on-error: true
+        run: pytest -m integration --cov-append
       - name: Coverage comment
         id: coverage_comment
         if: matrix.python-version == '3.12'

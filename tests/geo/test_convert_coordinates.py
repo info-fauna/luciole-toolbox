@@ -201,6 +201,18 @@ def test_convert_coordinates_lv_explicit_source_out_of_range_returns_none(cx, cy
 
 
 @pytest.mark.parametrize(
+    "cx, cy",
+    [
+        (646614.59, 137252.17),
+        ("impossible", "8.044591"),
+    ],
+    ids=["lv03-values-labelled-wgs84", "wgs84-non-numeric"],
+)
+def test_convert_coordinates_wgs84_explicit_source_invalid_returns_none(cx, cy):
+    assert convert_coordinates(cx, cy, source=CRSType.WGS84) is None
+
+
+@pytest.mark.parametrize(
     "cx, cy, source, target, expected",
     [
         (646614.59, 137252.17, CRSType.LV03, CRSType.LV03, (646615, 137252)),
