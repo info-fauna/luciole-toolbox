@@ -34,43 +34,6 @@ def _parse_coordinate(value):
         return None
 
 
-def get_CKM2(cx, cy):
-    """Return the 6-digit Swiss kilometre-square grid code (3-digit easting
-    + 3-digit northing), officially defined on LV03 coordinates.
-
-    cx/cy are expected in LV03. LV95 is also accepted: its fixed
-    +2,000,000/+1,000,000 easting/northing offset over LV03 is stripped via
-    `% 1_000_000`, which is only an approximation of the true LV03 value -
-    LV95 isn't a pure translation of LV03, so they differ by up to ~1.5 m
-    depending on location (see the FINELTRA reframe correction). Close
-    enough for a 1 km grid cell; not an exact reprojection. No CRS
-    detection is performed - callers needing an exact conversion or WGS84
-    support should convert to LV03 via convert_coordinates first.
-    """
-    x = _parse_coordinate(cx)
-    y = _parse_coordinate(cy)
-
-    if x is None or y is None:
-        return None
-
-    return f"{x % 1_000_000 // 1000:03d}{y % 1_000_000 // 1000:03d}"
-
-
-def get_CNHA(cx, cy):
-    """Return the 8-digit Swiss hectometre-square grid code (4-digit easting
-    + 4-digit northing), officially defined on LV03 coordinates.
-
-    Same LV03/LV95 handling and caveats as get_CKM2 - see that docstring.
-    """
-    x = _parse_coordinate(cx)
-    y = _parse_coordinate(cy)
-
-    if x is None or y is None:
-        return None
-
-    return f"{x % 1_000_000 // 100:04d}{y % 1_000_000 // 100:04d}"
-
-
 class CRSType(Enum):
     """Define the supported coordinate reference systems (CRS).
 
@@ -340,6 +303,43 @@ def get_CRS(cx, cy):
     if _detect_wgs84(cx, cy) is not None:
         return CRSType.WGS84
     return _detect_lv(cx, cy)
+
+
+def get_CKM2(cx, cy):
+    """Return the 6-digit Swiss kilometre-square grid code (3-digit easting
+    + 3-digit northing), officially defined on LV03 coordinates.
+
+    cx/cy are expected in LV03. LV95 is also accepted: its fixed
+    +2,000,000/+1,000,000 easting/northing offset over LV03 is stripped via
+    `% 1_000_000`, which is only an approximation of the true LV03 value -
+    LV95 isn't a pure translation of LV03, so they differ by up to ~1.5 m
+    depending on location (see the FINELTRA reframe correction). Close
+    enough for a 1 km grid cell; not an exact reprojection. No CRS
+    detection is performed - callers needing an exact conversion or WGS84
+    support should convert to LV03 via convert_coordinates first.
+    """
+    x = _parse_coordinate(cx)
+    y = _parse_coordinate(cy)
+
+    if x is None or y is None:
+        return None
+
+    return f"{x % 1_000_000 // 1000:03d}{y % 1_000_000 // 1000:03d}"
+
+
+def get_CNHA(cx, cy):
+    """Return the 8-digit Swiss hectometre-square grid code (4-digit easting
+    + 4-digit northing), officially defined on LV03 coordinates.
+
+    Same LV03/LV95 handling and caveats as get_CKM2 - see that docstring.
+    """
+    x = _parse_coordinate(cx)
+    y = _parse_coordinate(cy)
+
+    if x is None or y is None:
+        return None
+
+    return f"{x % 1_000_000 // 100:04d}{y % 1_000_000 // 100:04d}"
 
 
 _SUPPORTED_TARGETS = tuple(CRSType)
