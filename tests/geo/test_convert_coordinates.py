@@ -107,7 +107,7 @@ def test_convert_coordinates_unresolvable_source_returns_none(cx, cy):
 
 
 def test_convert_coordinates_invalid_target_raises():
-    with pytest.raises(ValueError):
+    with pytest.raises(TypeError):
         convert_coordinates(46.385018, 8.044591, target="not-a-crs")
 
 

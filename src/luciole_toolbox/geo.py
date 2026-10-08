@@ -462,6 +462,11 @@ def convert_coordinates(
 
     Values are rounded to 0 decimal for LV03 & LV95, 6 decimals for WGS84.
     """
+    if not isinstance(source, CRSType | None):
+        raise TypeError(f"Invalid `source` value: {source}")
+    if not isinstance(target, CRSType):
+        raise TypeError(f"Invalid `target` value: {target}")
+
     point = GeoPoint.parse(cx, cy, source=source)
     if point is None:
         return None
