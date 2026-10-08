@@ -294,19 +294,16 @@ def _resolve_coordinate_pair(cx, cy, source=None) -> tuple[CRSType, float, float
     are reordered. Out-of-range or unrecognized input is None.
     `source` skips auto-detection and resolves the pair in that system only.
     """
-    match source:
-        case CRSType.WGS84:
-            return _resolve_wgs84(cx, cy)
-        case CRSType.LV03 | CRSType.LV95:
-            return _resolve_lv(cx, cy, crs=source)
-        case None:
-            resolved = _resolve_wgs84(cx, cy)
-            if resolved is None:
-                resolved = _resolve_lv(cx, cy)
+    if source == CRSType.WGS84:
+        return _resolve_wgs84(cx, cy)
+    elif source in (CRSType.LV03, CRSType.LV95):
+        return _resolve_lv(cx, cy, crs=source)
+    else:
+        resolved = _resolve_wgs84(cx, cy)
+        if resolved is None:
+            resolved = _resolve_lv(cx, cy)
 
-            return resolved
-        case _:
-            raise ValueError(f"Invalid `source` value: {source}")
+        return resolved
 
 
 @dataclass(frozen=True)
