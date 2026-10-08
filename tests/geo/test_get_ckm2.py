@@ -44,18 +44,24 @@ def test_get_CKM2_formatted_input(cx, cy, expected_CKM2):
 @pytest.mark.parametrize(
     "cx, cy, expected_CKM2",
     [
-        ("123", "456", "000000"),
+        (45.822194, 9.012894, "722075"),
     ],
     ids=["small-values-zero-padded"],
 )
 def test_get_CKM2_start_with_0(cx, cy, expected_CKM2):
+    """
+    South locations will have less digits if not padded. For
+    example 45.822194, 9.012894 (near Chiasso) will return
+    72275 instead of 722075. This test ensures that the result
+    is padded so that the result is always 6 digits.
+    """
     assert get_CKM2(cx, cy) == expected_CKM2
 
 
 @pytest.mark.parametrize(
     "cx, cy, expected_CKM2",
     [
-        ("12345678", "98765432", "345765"),
+        ("12345678", "98765432", None),
     ],
     ids=["large-values"],
 )
@@ -66,8 +72,8 @@ def test_get_CKM2_large_values(cx, cy, expected_CKM2):
 @pytest.mark.parametrize(
     "cx, cy, expected_CKM2",
     [
-        ("-2600000", "1200000", "600200"),
-        ("2600000", "-1200000", "600200"),
+        ("-2600000", "1200000", None),
+        ("2600000", "-1200000", None),
     ],
     ids=["negative-cx", "negative-cy"],
 )
