@@ -24,16 +24,6 @@ def _strip_thousand_separators(value):
     return value
 
 
-def _parse_coordinate(value):
-    value = _strip_thousand_separators(value)
-    if value is None:
-        return None
-    try:
-        return abs(int(float(value)))
-    except (TypeError, ValueError):
-        return None
-
-
 class CRSType(Enum):
     """Define the supported coordinate reference systems (CRS).
 
@@ -286,18 +276,82 @@ def _resolve_lv(cx, cy):
     return (x_crs, x, y) if x_axis == "easting" else (x_crs, y, x)
 
 
-def _resolve_coordinate_pair(cx, cy) -> tuple[CRSType, float, float] | None:
+def _resolve_coordinate_pair(cx, cy, source=None) -> tuple[CRSType, float, float] | None:
     """Detect and rearrange the coordinate pair into (crs, a, b), or None if it cannot be resolved.
 
     `a, b` are in that CRS's own axis order: (easting, northing) for
     LV03/LV95, (lat, lon) for WGS84. Swapped cx/cy
     are reordered. Out-of-range or unrecognized input is None.
+    `source` skips auto-detection and resolves the pair in that system only.
     """
-    resolved = _resolve_wgs84(cx, cy)
-    if resolved is None:
-        resolved = _resolve_lv(cx, cy)
+    match source:
+        case CRSType.WGS84:
+            return _resolve_wgs84(cx, cy)
+        case CRSType.LV03 | CRSType.LV95:
+            return _resolve_lv(cx, cy, crs=source)
+        case None:
+            resolved = _resolve_wgs84(cx, cy)
+            if resolved is None:
+                resolved = _resolve_lv(cx, cy)
 
-    return resolved
+            return resolved
+        case _:
+            raise ValueError(f"Invalid `source` value: {source}")
+
+
+@dataclass(frozen=True)
+class GeoPoint:
+    """One resolved point, in the CRS it was detected or forced into.
+
+    `a, b` follow that CRS's axis order: (lat, lon) for WGS84,
+    (easting, northing) for LV03/LV95. `parse` returns None when the pair
+    cannot be resolved. `to` converts on each call; it does not cache.
+    """
+
+    crs: CRSType
+    a: float
+    b: float
+
+    @classmethod
+    def parse(cls, cx, cy, source=None) -> GeoPoint | None:
+        """Resolve (cx, cy) into a point, or None.
+
+        The coordinate system is auto-detected by default. Swapped
+        cx/cy are tolerated. If the input is unrecognized or if the values don't
+        fall within the coordinate system's valid ranges, None is returned.
+        The auto-detection is skipped if `source` is given. In that case,
+        swapped cx/cy are still supported.
+        """
+        resolved = _resolve_coordinate_pair(cx, cy, source)
+        if resolved is None:
+            return None
+        crs, a, b = resolved
+        return cls(crs, a, b)
+
+    def to(self, target=CRSType.LV03):
+        """Return this point in `target`, rounded to that CRS's conventional precision."""
+        if self.crs == target:
+            result = self.a, self.b
+        else:
+            result = _get_transformer(self.crs, target).transform(self.a, self.b)
+
+        return target.round_to_conventional_precision(result)
+
+    def get_CKM2(self):
+        """6-digit kilometre-square code of this point in LV03.
+
+        Each half is 3 digits, zero-padded, which is the code's defined width.
+        """
+        easting, northing = self.to(CRSType.LV03)
+        return f"{easting // 1000:03d}{northing // 1000:03d}"
+
+    def get_CNHA(self):
+        """8-digit hectometre-square code of this point in LV03.
+
+        Each half is 4 digits, zero-padded, which is the code's defined width.
+        """
+        easting, northing = self.to(CRSType.LV03)
+        return f"{easting // 100:04d}{northing // 100:04d}"
 
 
 def get_CRS(cx, cy):
@@ -314,44 +368,38 @@ def get_CRS(cx, cy):
     return resolved[0]
 
 
-def get_CKM2(cx, cy):
+def get_CKM2(cx, cy, source=None):
     """Return the 6-digit Swiss kilometre-square grid code (3-digit easting
     + 3-digit northing), officially defined on LV03 coordinates.
 
-    cx/cy are expected in LV03. LV95 is also accepted: its fixed
-    +2,000,000/+1,000,000 easting/northing offset over LV03 is stripped via
-    `% 1_000_000`, which is only an approximation of the true LV03 value -
-    LV95 isn't a pure translation of LV03, so they differ by up to ~1.5 m
-    depending on location (see the FINELTRA reframe correction). Close
-    enough for a 1 km grid cell; not an exact reprojection. No CRS
-    detection is performed - callers needing an exact conversion or WGS84
-    support should convert to LV03 via convert_coordinates first.
+    The coordinate system is auto-detected by default. Swapped
+    cx/cy are tolerated. If the input is unrecognized or if the values don't
+    fall within the coordinate system's valid ranges, None is returned.
+    The auto-detection is skipped if `source` is given. In that case,
+    swapped cx/cy are still supported.
     """
-    x = _parse_coordinate(cx)
-    y = _parse_coordinate(cy)
-
-    if x is None or y is None:
+    point = GeoPoint.parse(cx, cy, source=source)
+    if point is None:
         return None
 
-    return f"{x % 1_000_000 // 1000:03d}{y % 1_000_000 // 1000:03d}"
+    return point.get_CKM2()
 
 
-def get_CNHA(cx, cy):
+def get_CNHA(cx, cy, source=None):
     """Return the 8-digit Swiss hectometre-square grid code (4-digit easting
     + 4-digit northing), officially defined on LV03 coordinates.
 
-    Same LV03/LV95 handling and caveats as get_CKM2 - see that docstring.
+    The coordinate system is auto-detected by default. Swapped
+    cx/cy are tolerated. If the input is unrecognized or if the values don't
+    fall within the coordinate system's valid ranges, None is returned.
+    The auto-detection is skipped if `source` is given. In that case,
+    swapped cx/cy are still supported.
     """
-    x = _parse_coordinate(cx)
-    y = _parse_coordinate(cy)
-
-    if x is None or y is None:
+    point = GeoPoint.parse(cx, cy, source=source)
+    if point is None:
         return None
+    return point.get_CNHA()
 
-    return f"{x % 1_000_000 // 100:04d}{y % 1_000_000 // 100:04d}"
-
-
-_SUPPORTED_TARGETS = tuple(CRSType)
 
 # Cached per (source, target) pair - building a Transformer parses the grid
 # shift files, so it's worth not repeating on every call.
@@ -382,11 +430,11 @@ def _parse_planar_meters(value):
 def convert_coordinates(cx, cy, target=CRSType.LV03, source=None):
     """Convert a (cx, cy) pair to `target` (CRSType.LV03 by default).
 
-    `source` may be given explicitly as CRSType.WGS84/LV03/LV95 to skip
-    auto-detection; the values must still fall within that system's valid
-    ranges (swapped cx/cy are tolerated), otherwise None is returned. Left
-    at its default (None), it is auto-detected via get_CRS; unrecognized
-    input returns None rather than converting.
+    The coordinate system is auto-detected by default. Swapped
+    cx/cy are tolerated. If the input is unrecognized or if the values don't
+    fall within the coordinate system's valid ranges, None is returned.
+    The auto-detection is skipped if `source` is given. In that case,
+    swapped cx/cy are still supported.
 
     Values are rounded to 0 decimal for LV03 & LV95, 6 decimals for WGS84.
 
@@ -394,24 +442,11 @@ def convert_coordinates(cx, cy, target=CRSType.LV03, source=None):
     a caller configuration mistake, not messy row data, so it should fail
     loudly rather than silently propagate through a pipeline.
     """
-    if target not in _SUPPORTED_TARGETS:
-        raise ValueError(
-            f"convert_coordinates does not support target={target!r}; "
-            "only CRSType.LV03/CRSType.LV95/CRSType.WGS84 are implemented"
-        )
-
-    source = source or get_CRS(cx, cy)
-    resolved = _resolve_coordinate_pair(cx, cy)
-    if resolved is None or resolved[0] != source:
+    point = GeoPoint.parse(cx, cy, source=source)
+    if point is None:
         return None
 
-    crs, a, b = resolved
-    if crs == target:
-        result = a, b
-    else:
-        result = _get_transformer(source, target).transform(a, b)
-
-    return target.round_to_conventional_precision(result)
+    return point.to(target)
 
 
 # Switzerland/Liechtenstein bounding box in LV95 - the same figures
