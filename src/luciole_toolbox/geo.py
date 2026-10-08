@@ -139,6 +139,7 @@ def _parse_dms(value):
     axis = None
     if hemisphere is not None:
         axis = "lat" if hemisphere in ("N", "S") else "lon"
+
     return decimal, axis
 
 
@@ -178,6 +179,7 @@ def _guess_axis(value):
         return "lat"
     if in_lon and not in_lat:
         return "lon"
+
     return None
 
 
@@ -192,6 +194,7 @@ def _parse_wgs84_component(raw):
     decimal = _parse_decimal_degree(raw)
     if decimal is None:
         return None
+
     return decimal, None
 
 
@@ -244,27 +247,34 @@ _LV_SLOTS = {
 }
 
 
-def _guess_lv_slot(value):
+def _guess_lv_slot(value, crs=None):
     """Return the (CRSType, axis) slot a planar value unambiguously falls
-    into, else None (out of range, or in the gap between two ranges)."""
-    matches = [slot for slot, (lo, hi) in _LV_SLOTS.items() if lo <= value <= hi]
+    into, else None (out of range, or in the gap between two ranges).
+
+    `crs` limits the search to that system's easting and northing ranges.
+    """
+    slots = _LV_SLOTS.items()
+    if crs is not None:
+        slots = ((slot, bounds) for slot, bounds in slots if slot[0] == crs)
+    matches = [slot for slot, (lo, hi) in slots if lo <= value <= hi]
+
     return matches[0] if len(matches) == 1 else None
 
 
-def _resolve_lv(cx, cy):
+def _resolve_lv(cx, cy, crs=None):
     """Return (crs, easting, northing) if cx/cy jointly form a valid planar
     easting/northing pair in LV03 or LV95, else None. Tolerant of swapped
     cx/cy, same as _detect_wgs84: the pair comes back reordered as
-    (easting, northing). If `crs` is given, a pair falling in the other
-    system's ranges is rejected rather than accepted.
+    (easting, northing). If `crs` is given, only that system's ranges are
+    considered.
     """
     x = _parse_planar_meters(cx)
     y = _parse_planar_meters(cy)
     if x is None or y is None:
         return None
 
-    x_slot = _guess_lv_slot(x)
-    y_slot = _guess_lv_slot(y)
+    x_slot = _guess_lv_slot(x, crs)
+    y_slot = _guess_lv_slot(y, crs)
     if x_slot is None or y_slot is None:
         return None
 
@@ -316,16 +326,18 @@ class GeoPoint:
     def parse(cls, cx, cy, source=None) -> GeoPoint | None:
         """Resolve (cx, cy) into a point, or None.
 
-        The coordinate system is auto-detected by default. Swapped
-        cx/cy are tolerated. If the input is unrecognized or if the values don't
-        fall within the coordinate system's valid ranges, None is returned.
-        The auto-detection is skipped if `source` is given. In that case,
-        swapped cx/cy are still supported.
+        The coordinate system is auto-detected by default. If the input is unrecognized
+        or if the values don't fall within the coordinate system's valid ranges, None
+        is returned.
+        Swapped coordinates are tolerated.
+        The auto-detection is skipped if `source` is given.
+        Accepted input is the same as `get_CRS`.
         """
         resolved = _resolve_coordinate_pair(cx, cy, source)
         if resolved is None:
             return None
         crs, a, b = resolved
+
         return cls(crs, a, b)
 
     def to(self, target=CRSType.LV03):
@@ -343,6 +355,7 @@ class GeoPoint:
         Each half is 3 digits, zero-padded, which is the code's defined width.
         """
         easting, northing = self.to(CRSType.LV03)
+
         return f"{easting // 1000:03d}{northing // 1000:03d}"
 
     def get_CNHA(self):
@@ -351,32 +364,34 @@ class GeoPoint:
         Each half is 4 digits, zero-padded, which is the code's defined width.
         """
         easting, northing = self.to(CRSType.LV03)
+
         return f"{easting // 100:04d}{northing // 100:04d}"
 
 
-def get_CRS(cx, cy):
+def get_CRS(cx: float, cy: float) -> CRSType | None:
     """Detect the coordinate reference system of a (cx, cy) pair: WGS84
     (decimal degrees or DMS, e.g. 46° 23' 06.06" N) or LV03/LV95 (planar
     easting/northing in metres, told apart by their non-overlapping
     magnitude ranges - see _LV_SLOTS). Returns None for any other or
     unrecognized format.
     """
-    resolved = _resolve_coordinate_pair(cx, cy)
-    if resolved is None:
+    point = GeoPoint.parse(cx, cy)
+    if point is None:
         return None
 
-    return resolved[0]
+    return point.crs
 
 
-def get_CKM2(cx, cy, source=None):
+def get_CKM2(cx: float, cy: float, source: CRSType | None = None) -> str | None:
     """Return the 6-digit Swiss kilometre-square grid code (3-digit easting
     + 3-digit northing), officially defined on LV03 coordinates.
 
-    The coordinate system is auto-detected by default. Swapped
-    cx/cy are tolerated. If the input is unrecognized or if the values don't
-    fall within the coordinate system's valid ranges, None is returned.
-    The auto-detection is skipped if `source` is given. In that case,
-    swapped cx/cy are still supported.
+    The coordinate system is auto-detected by default. If the input is unrecognized
+    or if the values don't fall within the coordinate system's valid ranges, None
+    is returned.
+    Swapped coordinates are tolerated.
+    The auto-detection is skipped if `source` is given.
+    Accepted input is the same as `get_CRS`.
     """
     point = GeoPoint.parse(cx, cy, source=source)
     if point is None:
@@ -385,19 +400,21 @@ def get_CKM2(cx, cy, source=None):
     return point.get_CKM2()
 
 
-def get_CNHA(cx, cy, source=None):
+def get_CNHA(cx: float, cy: float, source: CRSType | None = None) -> str | None:
     """Return the 8-digit Swiss hectometre-square grid code (4-digit easting
     + 4-digit northing), officially defined on LV03 coordinates.
 
-    The coordinate system is auto-detected by default. Swapped
-    cx/cy are tolerated. If the input is unrecognized or if the values don't
-    fall within the coordinate system's valid ranges, None is returned.
-    The auto-detection is skipped if `source` is given. In that case,
-    swapped cx/cy are still supported.
+    The coordinate system is auto-detected by default. If the input is unrecognized
+    or if the values don't fall within the coordinate system's valid ranges, None
+    is returned.
+    Swapped coordinates are tolerated.
+    The auto-detection is skipped if `source` is given.
+    Accepted input is the same as `get_CRS`.
     """
     point = GeoPoint.parse(cx, cy, source=source)
     if point is None:
         return None
+
     return point.get_CNHA()
 
 
@@ -414,6 +431,7 @@ def _get_transformer(source, target):
         # exactly the order this module already parses/returns, so no manual
         # reordering is needed here.
         _TRANSFORMERS[key] = pyproj.Transformer.from_crs(source.epsg, target.epsg, always_xy=False)
+
     return _TRANSFORMERS[key]
 
 
@@ -427,20 +445,22 @@ def _parse_planar_meters(value):
         return None
 
 
-def convert_coordinates(cx, cy, target=CRSType.LV03, source=None):
+def convert_coordinates(
+    cx: float,
+    cy: float,
+    target: CRSType = CRSType.LV03,
+    source: CRSType | None = None,
+) -> tuple[int | float, int | float] | None:
     """Convert a (cx, cy) pair to `target` (CRSType.LV03 by default).
 
-    The coordinate system is auto-detected by default. Swapped
-    cx/cy are tolerated. If the input is unrecognized or if the values don't
-    fall within the coordinate system's valid ranges, None is returned.
-    The auto-detection is skipped if `source` is given. In that case,
-    swapped cx/cy are still supported.
+    The coordinate system is auto-detected by default. If the input is unrecognized
+    or if the values don't fall within the coordinate system's valid ranges, None
+    is returned.
+    Swapped coordinates are tolerated.
+    The auto-detection is skipped if `source` is given.
+    Accepted input is the same as `get_CRS`.
 
     Values are rounded to 0 decimal for LV03 & LV95, 6 decimals for WGS84.
-
-    An invalid `target` raises ValueError instead of returning None: it is
-    a caller configuration mistake, not messy row data, so it should fail
-    loudly rather than silently propagate through a pipeline.
     """
     point = GeoPoint.parse(cx, cy, source=source)
     if point is None:
@@ -457,25 +477,28 @@ _CH_LV95_EASTING_RANGE = (2_485_000, 2_834_000)
 _CH_LV95_NORTHING_RANGE = (1_075_000, 1_296_000)
 
 
-def is_in_switzerland_bbox(cx, cy, source=None):
+def is_in_switzerland_bbox(cx: float, cy: float, source: CRSType | None = None) -> bool | None:
     """Return whether (cx, cy) falls within Switzerland/Liechtenstein's
     bounding box - a fast rectangular approximation, not the precise
     border polygon (see get_location_info for that, at the cost of a
-    network call).
+    network call). None is returned if the coordinate could not be parsed
+    or detected.
 
-    Accepts the same input as convert_coordinates: WGS84 (decimal degrees
-    or DMS), LV03 or LV95, auto-detected unless `source` is given
-    explicitly. Returns None if the coordinate can't be parsed/detected at
-    all, so callers can tell "unrecognized input" apart from "recognized
-    but outside the box" instead of both reading as one falsy value.
+    The coordinate system is auto-detected by default. If the input is unrecognized
+    or if the values don't fall within the coordinate system's valid ranges, None
+    is returned.
+    Swapped coordinates are tolerated.
+    The auto-detection is skipped if `source` is given.
+    Accepted input is the same as `get_CRS`.
     """
-    coords = convert_coordinates(cx, cy, target=CRSType.LV95, source=source)
-    if coords is None:
+    point = GeoPoint.parse(cx, cy, source=source)
+    if point is None:
         return None
-    easting, northing = coords
 
+    easting, northing = point.to(CRSType.LV95)
     east_min, east_max = _CH_LV95_EASTING_RANGE
     north_min, north_max = _CH_LV95_NORTHING_RANGE
+
     return east_min <= easting <= east_max and north_min <= northing <= north_max
 
 
@@ -527,26 +550,37 @@ def _identify_by_layer(easting, northing, session):
     by_layer = {}
     for result in response.json()["results"]:
         by_layer.setdefault(result["layerBodId"], []).append(result["attributes"])
+
     return by_layer
 
 
-def get_location_info(cx, cy, source=None, session=None):
+def get_location_info(
+    cx: float,
+    cy: float,
+    source: CRSType | None = None,
+    session: requests.Session | None = None,
+) -> LocationInfo | None:
     """Look up the Swiss/Liechtenstein commune, canton and country a point
     falls in, via swisstopo's public identify API.
 
-    cx/cy are detected/converted the same way as convert_coordinates
-    (`source` skips detection); the point is then queried against
-    swisstopo's LV95 administrative-boundary layers. Returns None if the
-    coordinate can't be resolved, or falls outside Switzerland/Liechtenstein
+    The coordinate system is auto-detected by default. If the input is unrecognized
+    or if the values don't fall within the coordinate system's valid ranges, None
+    is returned.
+    Swapped coordinates are tolerated.
+    The auto-detection is skipped if `source` is given.
+    Accepted input is the same as `get_CRS`.
+
+    The point is then queried against swisstopo's LV95 administrative-boundary
+    layers. Returns None if it falls outside Switzerland/Liechtenstein
     entirely. Network errors from the underlying request propagate to the
     caller rather than being swallowed into a None return, since that would
     be indistinguishable from a point genuinely outside CH/LI.
     """
-    coords = convert_coordinates(cx, cy, target=CRSType.LV95, source=source)
-    if coords is None:
+    point = GeoPoint.parse(cx, cy, source=source)
+    if point is None:
         return None
-    easting, northing = coords
 
+    easting, northing = point.to(CRSType.LV95)
     by_layer = _identify_by_layer(easting, northing, session)
 
     land = by_layer.get(_SWISSTOPO_LAND_LAYER)
@@ -567,13 +601,23 @@ def get_location_info(cx, cy, source=None, session=None):
     return LocationInfo(cofs=cofs, commune=commune, canton=canton, country=country)
 
 
-def get_altitude(cx, cy, source=None, session=None):
+def get_altitude(
+    cx: float,
+    cy: float,
+    source: CRSType | None = None,
+    session: requests.Session | None = None,
+) -> float | None:
     """Look up the DHM25 altitude (metres) of a point, via swisstopo's public
     height API.
 
-    cx/cy are detected/converted the same way as convert_coordinates
-    (`source` skips detection). Returns None if the coordinate can't be
-    resolved, or if the height API rejects the query with an HTTP 400 -
+    The coordinate system is auto-detected by default. If the input is unrecognized
+    or if the values don't fall within the coordinate system's valid ranges, None
+    is returned.
+    Swapped coordinates are tolerated.
+    The auto-detection is skipped if `source` is given.
+    Accepted input is the same as `get_CRS`.
+
+    Returns None if the height API rejects the query with an HTTP 400 -
     in practice this means the point falls outside the height model's
     coverage, so like get_location_info, a resolved point with no data is
     None rather than an exception, even though swisstopo signals that case
@@ -581,17 +625,16 @@ def get_altitude(cx, cy, source=None, session=None):
     Any other HTTP error still propagates to the caller rather than being
     swallowed.
     """
-    coords = convert_coordinates(cx, cy, target=CRSType.LV95, source=source)
-    if coords is None:
+    point = GeoPoint.parse(cx, cy, source=source)
+    if point is None:
         return None
-    easting, northing = coords
 
+    easting, northing = point.to(CRSType.LV95)
     params = {
         "easting": f"{easting}",
         "northing": f"{northing}",
         "sr": "2056",  # CRSType.LV95
     }
-
     response = (session or _DEFAULT_SESSION).get(
         _SWISSTOPO_POINT_HEIGHT_URL, params=params, timeout=10
     )
