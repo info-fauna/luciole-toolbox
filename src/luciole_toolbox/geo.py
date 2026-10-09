@@ -471,6 +471,43 @@ def convert_coordinates(
     return point.to(target)
 
 
+def convert_coordinates_seq(
+    coords: list[tuple[float, float]],
+    target: CRSType = CRSType.LV03,
+    source: CRSType | None = None,
+) -> list[tuple[int | float, int | float] | None]:
+    """Convert each (cx, cy) pair in `coords` to `target` (CRSType.LV03 by default).
+
+    The coordinate system is auto-detected by default. If a pair is unrecognized
+    or the values don't fall within the coordinate system's valid ranges, that
+    entry is None. The result keeps the input order and length.
+    Swapped coordinates are tolerated.
+    The auto-detection is skipped if `source` is given.
+    Accepted input is the same as `get_CRS`.
+
+    Values are rounded to 0 decimal for LV03 & LV95, 6 decimals for WGS84.
+    """
+    if not isinstance(source, CRSType) and source is not None:
+        raise TypeError(f"Invalid `source` value: {source}")
+    if not isinstance(target, CRSType) and target is not None:
+        raise TypeError(f"Invalid `target` value: {target}")
+
+    # Repeated and swapped inputs resolve to one point; convert that point once.
+    results = []
+    by_raw = {}
+    by_point = {}
+    for cx, cy in coords:
+        raw = (cx, cy)
+        if raw not in by_raw:
+            point = GeoPoint.parse(cx, cy, source=source)
+            if point is not None and point not in by_point:
+                by_point[point] = point.to(target)
+            by_raw[raw] = None if point is None else by_point[point]
+        results.append(by_raw[raw])
+
+    return results
+
+
 # Switzerland/Liechtenstein bounding box in LV95 - the same figures
 # _LV95_EASTING_RANGE/_LV95_NORTHING_RANGE are derived from before widening
 # by the neighbour margin, kept separate here since this is a real
