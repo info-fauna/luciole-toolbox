@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `geo.convert_coordinates_seq` function to be able to convert a sequence of coordinates in one single call
+
 ## [1.1.1] - 2026-10-05
 
 ### Fixed
