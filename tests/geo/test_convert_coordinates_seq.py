@@ -161,5 +161,4 @@ def test_convert_coordinates_seq_ten_thousand_points_within_half_a_second():
         assert type(result[index][1]) is int
     # About a few hundredths of a second locally for this WGS84 -> LV03
     # batch. One second leaves room for a slower CI runner.
-    print("AAAA", elapsed)
     assert elapsed < 0.5, f"10_000 points took {elapsed:.3f}s (max 0.5s)"
