@@ -106,6 +106,11 @@ def test_convert_coordinates_unresolvable_source_returns_none(cx, cy):
     assert convert_coordinates(cx, cy) is None
 
 
+def test_convert_coordinates_invalid_source_raises():
+    with pytest.raises(TypeError):
+        convert_coordinates(46.385018, 8.044591, source="WGS844")
+
+
 def test_convert_coordinates_invalid_target_raises():
     with pytest.raises(TypeError):
         convert_coordinates(46.385018, 8.044591, target="not-a-crs")
