@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - `geo.get_CKM2` and `geo.get_CNHA` now do a real coordinate conversion (through) `geo.GeoPoint` constructor, hence all coordinate system are equally supported
 
+### Added
+
+- `geo.convert_coordinates_seq` function to be able to convert a sequence of coordinates in one single call
+
 ## [1.1.1] - 2026-10-05
 
 ### Fixed
