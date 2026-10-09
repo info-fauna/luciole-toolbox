@@ -66,7 +66,7 @@ def test_get_CRS_dms_without_hemisphere(cx, cy):
         ("46° 23′ 06.06″ N", "E 8° 02′ 40.53″ E", None),
         ("N 46° 23′ 06.06″ N", "8° 02′ 40.53″ E", None),
     ],
-    ids=["dms-pre-and-post-hemisphere-letter-E", "dms-pre-hemisphere-letter-N-post-hemisphere-letter-E"],
+    ids=["dms-pre-and-post-hemisphere-letter-E", "dms-pre-hemisphere-letter-N-post-hemisphere-letter-N"],
 )
 def test_get_CRS_dms_pre_and_post_hemisphere_letters(cx, cy, expected):
     assert get_CRS(cx, cy) == expected
