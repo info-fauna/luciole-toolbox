@@ -33,6 +33,11 @@ def test_convert_coordinates_seq_default_target_is_lv03():
     assert type(result[0][1]) is int
 
 
+def test_convert_coordinates_invalid_source_raises():
+    with pytest.raises(TypeError):
+        convert_coordinates_seq([(646614.59, 137252.17)], source="WGS844")
+
+
 def test_convert_coordinates_seq_invalid_target_raises():
     with pytest.raises(TypeError):
         convert_coordinates_seq([(646614.59, 137252.17)], target="not-a-crs")
@@ -162,3 +167,14 @@ def test_convert_coordinates_seq_ten_thousand_points_within_half_a_second():
     # About a few hundredths of a second locally for this WGS84 -> LV03
     # batch. One second leaves room for a slower CI runner.
     assert elapsed < 0.5, f"10_000 points took {elapsed:.3f}s (max 0.5s)"
+
+
+@pytest.mark.integration
+def test_convert_coordinates_seq_multiple_identical_pairs():
+    coords = [(646614.59, 137252.17), (1.0, 2.0), ("646'614.59", "137'252.17"), (646614.59, 137252.17)]
+    assert convert_coordinates_seq(coords, target=CRSType.LV03, source=CRSType.LV03) == [
+        (646615, 137252),
+        None,
+        (646615, 137252),
+        (646615, 137252),
+    ]
