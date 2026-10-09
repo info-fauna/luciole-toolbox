@@ -44,18 +44,24 @@ def test_get_CNHA_formatted_input(cx, cy, expected_CNHA):
 @pytest.mark.parametrize(
     "cx, cy, expected_CNHA",
     [
-        ("123", "456", "00010004"),
+        (45.822194, 9.012894, "72230757"),
     ],
     ids=["small-values-zero-padded"],
 )
 def test_get_CNHA_start_with_0(cx, cy, expected_CNHA):
+    """
+    South locations will have less digits if not padded. For
+    example 45.822194, 9.012894 (near Chiasso) will return
+    7223757 instead of 72230757. This test ensures that the
+    result is padded so that the result is always 8 digits.
+    """
     assert get_CNHA(cx, cy) == expected_CNHA
 
 
 @pytest.mark.parametrize(
     "cx, cy, expected_CNHA",
     [
-        ("12345678", "98765432", "34567654"),
+        ("12345678", "98765432", None),
     ],
     ids=["large-values"],
 )
@@ -66,8 +72,8 @@ def test_get_CNHA_large_values(cx, cy, expected_CNHA):
 @pytest.mark.parametrize(
     "cx, cy, expected_CNHA",
     [
-        ("-2600000", "1200000", "60002000"),
-        ("2600000", "-1200000", "60002000"),
+        ("-2600000", "1200000", None),
+        ("2600000", "-1200000", None),
     ],
     ids=["negative-cx", "negative-cy"],
 )
