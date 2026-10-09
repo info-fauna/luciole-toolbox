@@ -171,7 +171,12 @@ def test_convert_coordinates_seq_ten_thousand_points_within_half_a_second():
 
 @pytest.mark.integration
 def test_convert_coordinates_seq_multiple_identical_pairs():
-    coords = [(646614.59, 137252.17), (1.0, 2.0), ("646'614.59", "137'252.17"), (646614.59, 137252.17)]
+    coords = [
+        (646614.59, 137252.17),
+        (1.0, 2.0),
+        ("646'614.59", "137'252.17"),
+        (646614.59, 137252.17),
+    ]
     assert convert_coordinates_seq(coords, target=CRSType.LV03, source=CRSType.LV03) == [
         (646615, 137252),
         None,
