@@ -492,18 +492,14 @@ def convert_coordinates_seq(
     if not isinstance(target, CRSType) and target is not None:
         raise TypeError(f"Invalid `target` value: {target}")
 
-    # Repeated and swapped inputs resolve to one point; convert that point once.
-    results = []
-    by_raw = {}
-    by_point = {}
-    for cx, cy in coords:
-        raw = (cx, cy)
-        if raw not in by_raw:
-            point = GeoPoint.parse(cx, cy, source=source)
-            if point is not None and point not in by_point:
-                by_point[point] = point.to(target)
-            by_raw[raw] = None if point is None else by_point[point]
-        results.append(by_raw[raw])
+    # Parse unique GeoPoints based on a set of unique coords
+    geopoints = {(cx, cy): GeoPoint.parse(cx, cy, source=source) for cx, cy in set(coords)}
+
+    # Convert successfully parsed GeoPoints
+    converted_points = {key: None if p is None else p.to(target) for key, p in geopoints.items()}
+
+    # Arrange converted coords according to the original list
+    results = [converted_points[(cx, cy)] for cx, cy in coords]
 
     return results
 
