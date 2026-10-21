@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-10-21
+
 ### Changed
 
 - Add `geo.GeoPoint` class to centralize parsing, auto-detection and resolution of coordinates
