@@ -2,6 +2,12 @@ name: Docs
 
 on:
   workflow_dispatch:
+  workflow_call: # reused by release.yml to build the site it deploys
+    inputs:
+      upload:
+        description: Upload the built site as a Pages artifact
+        type: boolean
+        default: false
   pull_request:
     branches: [main]
   push:
@@ -9,8 +15,6 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: docs-${{ github.ref }}
@@ -29,17 +33,6 @@ jobs:
       - run: pip install ".[docs]"
       - run: mkdocs build --strict
       - uses: actions/upload-pages-artifact@v5
-        if: github.event_name == 'push'
+        if: inputs.upload
         with:
           path: site
-
-  deploy:
-    if: github.event_name == 'push'
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - id: deployment
-        uses: actions/deploy-pages@v5
