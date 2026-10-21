@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- Add `geo.GeoPoint` class to centralize parsing, auto-detection and resolution of coordinates
+
+### Fixed
+
+- `geo.get_CKM2` and `geo.get_CNHA` now do a real coordinate conversion (through) `geo.GeoPoint` constructor, hence all coordinate system are equally supported
+
 ## [1.1.1] - 2026-10-05
 
 ### Fixed

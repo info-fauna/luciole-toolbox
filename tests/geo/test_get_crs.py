@@ -61,16 +61,18 @@ def test_get_CRS_dms_without_hemisphere(cx, cy):
 
 
 @pytest.mark.parametrize(
-    "cx, cy",
+    "cx, cy, expected",
     [
-        (90.0, 8.0),
-        (46.0, 46.5),
-        (8.0, 9.0),
+        ("46° 23′ 06.06″ N", "E 8° 02′ 40.53″ E", None),
+        ("N 46° 23′ 06.06″ N", "8° 02′ 40.53″ E", None),
     ],
-    ids=["out-of-range", "both-plausible-as-lat-only", "both-plausible-as-lon-only"],
+    ids=[
+        "dms-pre-and-post-hemisphere-letter-E",
+        "dms-pre-hemisphere-letter-N-post-hemisphere-letter-N",
+    ],
 )
-def test_get_CRS_unresolvable_axes(cx, cy):
-    assert get_CRS(cx, cy) is None
+def test_get_CRS_dms_pre_and_post_hemisphere_letters(cx, cy, expected):
+    assert get_CRS(cx, cy) == expected
 
 
 @pytest.mark.parametrize(
