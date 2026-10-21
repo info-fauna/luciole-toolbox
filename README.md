@@ -71,7 +71,8 @@ To cut a release:
    ```
 
 This triggers the `release` workflow, which builds the package, publishes
-it to PyPI, and creates a matching GitHub Release.
+it to PyPI, creates a matching GitHub Release, and deploys the documentation
+to GitHub Pages once the PyPI publish succeeds.
 
 ## Contributing
 
