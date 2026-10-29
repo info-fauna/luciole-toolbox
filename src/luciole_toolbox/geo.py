@@ -110,7 +110,7 @@ def _parse_dms(value):
     A hemisphere letter ('46° 23′ 06.06″ N', 'N46.38', '8° 02.5′ E') fixes
     the sign and the axis; without one ('46°00′49.13″') the value is
     assumed positive and axis is None, left for the caller to resolve (e.g.
-    via magnitude, as `_detect_wgs84` already does for plain decimals).
+    via magnitude, as `_resolve_wgs84` already does for plain decimals).
     None is returned if the value doesn't look like DMS at all, or carries
     contradictory hemisphere letters on both ends.
     """
@@ -231,7 +231,7 @@ def _resolve_wgs84(cx, cy):
 # hand-entered points just across the border still resolve. LV95 offsets
 # LV03 by a fixed +2,000,000 (easting) / +1,000,000 (northing), so the four
 # ranges below never overlap - this lets a value's magnitude alone say
-# which system and axis it belongs to, and (like _detect_wgs84) tolerates
+# which system and axis it belongs to, and (like _resolve_wgs84) tolerates
 # swapped cx/cy for free.
 _LV_NEIGHBOUR_MARGIN_M = 50_000
 _LV03_EASTING_RANGE = (485_000 - _LV_NEIGHBOUR_MARGIN_M, 834_000 + _LV_NEIGHBOUR_MARGIN_M)
@@ -264,7 +264,7 @@ def _guess_lv_slot(value, crs=None):
 def _resolve_lv(cx, cy, crs=None):
     """Return (crs, easting, northing) if cx/cy jointly form a valid planar
     easting/northing pair in LV03 or LV95, else None. Tolerant of swapped
-    cx/cy, same as _detect_wgs84: the pair comes back reordered as
+    cx/cy, same as _resolve_wgs84: the pair comes back reordered as
     (easting, northing). If `crs` is given, only that system's ranges are
     considered.
     """
