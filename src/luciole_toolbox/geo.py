@@ -512,12 +512,18 @@ _CH_LV95_EASTING_RANGE = (2_485_000, 2_834_000)
 _CH_LV95_NORTHING_RANGE = (1_075_000, 1_296_000)
 
 
-def is_in_switzerland_bbox(cx: float, cy: float, source: CRSType | None = None) -> bool | None:
+def is_in_switzerland_bbox(
+    cx: float,
+    cy: float,
+    allowed_buffer_km: float = 0,
+    source: CRSType | None = None,
+) -> bool | None:
     """Return whether (cx, cy) falls within Switzerland/Liechtenstein's
     bounding box - a fast rectangular approximation, not the precise
     border polygon (see get_location_info for that, at the cost of a
     network call). None is returned if the coordinate could not be parsed
     or detected.
+    Use `allowed_buffer_km` to allow coordinates to be slightly outside the bounding box.
 
     The coordinate system is auto-detected by default. If the input is unrecognized
     or if the values don't fall within the coordinate system's valid ranges, None
@@ -531,8 +537,14 @@ def is_in_switzerland_bbox(cx: float, cy: float, source: CRSType | None = None) 
         return None
 
     easting, northing = point.to(CRSType.LV95)
-    east_min, east_max = _CH_LV95_EASTING_RANGE
+    east_min, east_max = _CH_LV95_EASTING_RANGE 
     north_min, north_max = _CH_LV95_NORTHING_RANGE
+
+    assert allowed_buffer_km >= 0, "allowed_buffer_km must be non-negative"
+    east_min -= allowed_buffer_km * 1000
+    east_max += allowed_buffer_km * 1000
+    north_min -= allowed_buffer_km * 1000
+    north_max += allowed_buffer_km * 1000
 
     return east_min <= easting <= east_max and north_min <= northing <= north_max
 
