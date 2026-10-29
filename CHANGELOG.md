@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Add `allowed_buffer_km` in `geo.is_in_switzerland_bbox` to be able to take into account points near the border.
+
 ## [2.0.0] - 2026-10-21
 
 ### Changed

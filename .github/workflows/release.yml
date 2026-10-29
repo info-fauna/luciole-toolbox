@@ -47,7 +47,11 @@ jobs:
       upload: true
 
   docs-deploy:
-    needs: [publish, docs-build] # only publish docs once the package is on PyPI
+    # Deploys the docs only once the package is on PyPI, so this job runs on
+    # the release tag. The github-pages environment must allow that tag
+    # (Settings → Environments → github-pages → Deployment branches and tags):
+    # gh api --method POST repos/info-fauna/luciole-toolbox/environments/github-pages/deployment-branch-policies -f name='v*.*.*' -f type=tag
+    needs: [publish, docs-build]
     runs-on: ubuntu-latest
     permissions:
       pages: write
