@@ -537,7 +537,7 @@ def is_in_switzerland_bbox(
         return None
 
     easting, northing = point.to(CRSType.LV95)
-    east_min, east_max = _CH_LV95_EASTING_RANGE 
+    east_min, east_max = _CH_LV95_EASTING_RANGE
     north_min, north_max = _CH_LV95_NORTHING_RANGE
 
     assert allowed_buffer_km >= 0, "allowed_buffer_km must be non-negative"
