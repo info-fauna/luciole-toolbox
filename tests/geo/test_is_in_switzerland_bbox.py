@@ -99,3 +99,16 @@ def test_is_in_switzerland_bbox_lv03_outside_via_autodetect():
 )
 def test_is_in_switzerland_bbox_unresolvable_returns_none(cx, cy):
     assert is_in_switzerland_bbox(cx, cy) is None
+
+
+@pytest.mark.parametrize(
+    "cx, cy, allowed_buffer_km, expected",
+    [
+        # 46.108565, 5.823456: Bellegarde-sur-Valserine (~10km from the border)
+        (46.108565, 5.823456, 0, False),
+        (46.108565, 5.823456, 5, False),
+        (46.108565, 5.823456, 10, True),
+    ],
+)
+def test_is_in_switzerland_bbox_allowed_buffer_km(cx, cy, allowed_buffer_km, expected):
+    assert is_in_switzerland_bbox(cx, cy, allowed_buffer_km=allowed_buffer_km) is expected
