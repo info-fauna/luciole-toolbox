@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import Enum
 
@@ -472,7 +473,7 @@ def convert_coordinates(
 
 
 def convert_coordinates_seq(
-    coords: list[tuple[float, float]],
+    coords: Sequence[tuple[float, float]],
     target: CRSType = CRSType.LV03,
     source: CRSType | None = None,
 ) -> list[tuple[int | float, int | float] | None]:
@@ -491,6 +492,8 @@ def convert_coordinates_seq(
         raise TypeError(f"Invalid `source` value: {source}")
     if not isinstance(target, CRSType) and target is not None:
         raise TypeError(f"Invalid `target` value: {target}")
+    if not isinstance(coords, Sequence):
+        raise TypeError(f"`coords` must be a sequence, got {type(coords).__name__}.")
 
     # Parse unique GeoPoints based on a set of unique coords
     geopoints = {(cx, cy): GeoPoint.parse(cx, cy, source=source) for cx, cy in set(coords)}

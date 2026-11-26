@@ -43,6 +43,19 @@ def test_convert_coordinates_seq_invalid_target_raises():
         convert_coordinates_seq([(646614.59, 137252.17)], target="not-a-crs")
 
 
+@pytest.mark.parametrize(
+    "coords",
+    [
+        zip([646614.59, 600072.37], [137252.17, 200147.07]),
+        ((646614.59, 137252.17) for _ in range(2)),
+    ],
+    ids=["zip", "generator"],
+)
+def test_convert_coordinates_seq_one_shot_iterable_raises(coords):
+    with pytest.raises(TypeError):
+        convert_coordinates_seq(coords, source=CRSType.LV03)
+
+
 def test_convert_coordinates_seq_explicit_source_skips_detection(monkeypatch):
     def _fail(*_args, **_kwargs):
         raise AssertionError("get_CRS should not run when source is given")
