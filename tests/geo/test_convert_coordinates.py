@@ -336,9 +336,8 @@ def test_convert_coordinates_batch_empty():
 
 
 def test_convert_coordinates_batch_default_target_matches_scalar():
-    coords = [(646614.59, 137252.17), ("646'614.59", "137'252.17"), (1.0, 2.0)]
-    assert convert_coordinates_batch(coords, source=CRSType.LV03) == [
-        convert_coordinates(cx, cy, source=CRSType.LV03) for cx, cy in coords
+    assert convert_coordinates_batch(_BATCH_COORDS, source=CRSType.LV03) == [
+        convert_coordinates(cx, cy, source=CRSType.LV03) for cx, cy in _BATCH_COORDS
     ]
 
 
@@ -352,33 +351,20 @@ def test_convert_coordinates_batch_invalid_target_raises():
         convert_coordinates_batch([(646614.59, 137252.17)], target="not-a-crs")
 
 
-@pytest.mark.parametrize(
-    "coords",
-    [
-        zip([646614.59, 600072.37], [137252.17, 200147.07]),
-        ((646614.59, 137252.17) for _ in range(2)),
-    ],
-    ids=["zip", "generator"],
-)
-def test_convert_coordinates_batch_one_shot_iterable_raises(coords):
-    with pytest.raises(TypeError):
-        convert_coordinates_batch(coords, source=CRSType.LV03)
-
-
 def test_convert_coordinates_batch_explicit_source_skips_detection(monkeypatch):
     def _fail(*_args, **_kwargs):
         raise AssertionError("get_CRS should not run when source is given")
 
     monkeypatch.setattr("luciole_toolbox.geo.get_CRS", _fail)
-    coords = [(646614.59, 137252.17), (1.0, 2.0)]
-    assert convert_coordinates_batch(coords, target=CRSType.LV03, source=CRSType.LV03) == [
-        convert_coordinates(cx, cy, target=CRSType.LV03, source=CRSType.LV03) for cx, cy in coords
+    assert convert_coordinates_batch(_BATCH_COORDS, target=CRSType.LV03, source=CRSType.LV03) == [
+        convert_coordinates(cx, cy, target=CRSType.LV03, source=CRSType.LV03)
+        for cx, cy in _BATCH_COORDS
     ]
 
 
+@pytest.mark.integration
 def test_convert_coordinates_batch_detects_each_pair_when_source_omitted(monkeypatch):
-    coords = [(646614.59, 137252.17), (600072.37, 200147.07), (1.0, 2.0)]
-    expected = [convert_coordinates(cx, cy, target=CRSType.LV03) for cx, cy in coords]
+    expected = [convert_coordinates(cx, cy, target=CRSType.LV03) for cx, cy in _BATCH_COORDS]
 
     calls = {"n": 0}
     real = GeoPoint.parse.__func__
@@ -388,8 +374,8 @@ def test_convert_coordinates_batch_detects_each_pair_when_source_omitted(monkeyp
         return real(cls, cx, cy, source=source)
 
     monkeypatch.setattr(GeoPoint, "parse", classmethod(_wrapped))
-    result = convert_coordinates_batch(coords, target=CRSType.LV03)
-    assert calls["n"] == len(coords)
+    result = convert_coordinates_batch(_BATCH_COORDS, target=CRSType.LV03)
+    assert calls["n"] == len(_BATCH_COORDS)
     assert result == expected
 
 
@@ -399,6 +385,20 @@ def test_convert_coordinates_batch_matches_convert_coordinates(target):
     assert convert_coordinates_batch(_BATCH_COORDS, target=target) == [
         convert_coordinates(cx, cy, target=target) for cx, cy in _BATCH_COORDS
     ]
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "as_iterable",
+    [
+        lambda pairs: ((x, y) for x, y in pairs),
+        lambda pairs: zip((p[0] for p in pairs), (p[1] for p in pairs)),
+    ],
+    ids=["generator", "zip"],
+)
+def test_convert_coordinates_batch_using_iterable(as_iterable):
+    expected = [convert_coordinates(cx, cy, target=CRSType.LV03) for cx, cy in _BATCH_COORDS]
+    assert convert_coordinates_batch(as_iterable(_BATCH_COORDS), target=CRSType.LV03) == expected
 
 
 @pytest.mark.integration
