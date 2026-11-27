@@ -1,6 +1,6 @@
 import pytest
 
-from luciole_toolbox.geo import CRSType, is_in_switzerland_bbox
+from luciole_toolbox.geo import CRSType, is_in_switzerland_bbox, is_in_switzerland_bbox_batch
 
 # Strict Switzerland/Liechtenstein bbox in LV95 (see _CH_LV95_EASTING_RANGE/
 # _CH_LV95_NORTHING_RANGE in geo.py). Used directly as LV95 input below so
@@ -112,3 +112,98 @@ def test_is_in_switzerland_bbox_unresolvable_returns_none(cx, cy):
 )
 def test_is_in_switzerland_bbox_allowed_buffer_km(cx, cy, allowed_buffer_km, expected):
     assert is_in_switzerland_bbox(cx, cy, allowed_buffer_km=allowed_buffer_km) is expected
+
+
+# LV95 only: identity path, no transformer and no network.
+_BATCH_COORDS = [
+    (2_600_000, 1_200_000),
+    (_CH_LV95_EASTING_MIN, 1_200_000),
+    (2_600_000, _CH_LV95_NORTHING_MIN),
+    (_CH_LV95_EASTING_MAX, _CH_LV95_NORTHING_MAX),
+    (2_450_000, 1_200_000),
+    (2_600_000, 1_310_000),
+    (None, None),
+    ("", ""),
+    (2_600_000, 1_200_000),
+]
+
+
+def test_is_in_switzerland_bbox_batch_empty():
+    assert is_in_switzerland_bbox_batch([]) == []
+
+
+def test_is_in_switzerland_bbox_batch_string_raises():
+    with pytest.raises(TypeError):
+        is_in_switzerland_bbox_batch("2600000, 1200000")
+
+
+@pytest.mark.parametrize("source", [None, CRSType.LV95], ids=["autodetect", "lv95-source"])
+def test_is_in_switzerland_bbox_batch_matches_scalar(source):
+    assert is_in_switzerland_bbox_batch(_BATCH_COORDS, source=source) == [
+        is_in_switzerland_bbox(cx, cy, source=source) for cx, cy in _BATCH_COORDS
+    ]
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "source, allowed_buffer_km",
+    [
+        (None, 0),
+        (None, 10),
+        (CRSType.LV03, 0),
+        (CRSType.WGS84, 10),
+    ],
+    ids=["autodetect", "buffer", "lv03-source", "buffer-and-wgs84-source"],
+)
+def test_is_in_switzerland_bbox_batch_matches_scalar_across_crs(source, allowed_buffer_km):
+    coords = [
+        (46.948, 7.447),
+        ("46° 56.88' N", "7° 26.82' E"),
+        (600_000, 200_000),
+        (2_600_000, 1_200_000),
+        (46.108565, 5.823456),
+        (600_000, 300_000),
+        (None, None),
+        (48.8566, 2.3522),
+    ]
+    assert is_in_switzerland_bbox_batch(
+        coords,
+        allowed_buffer_km=allowed_buffer_km,
+        source=source,
+    ) == [
+        is_in_switzerland_bbox(
+            cx,
+            cy,
+            allowed_buffer_km=allowed_buffer_km,
+            source=source,
+        )
+        for cx, cy in coords
+    ]
+
+
+def test_is_in_switzerland_bbox_batch_invalid_source_raises():
+    with pytest.raises(TypeError):
+        is_in_switzerland_bbox_batch([(2_600_000, 1_200_000)], source="LV95")
+
+
+@pytest.mark.parametrize(
+    "as_iterable",
+    [
+        lambda pairs: ((cx, cy) for cx, cy in pairs),
+        lambda pairs: zip((p[0] for p in pairs), (p[1] for p in pairs)),
+    ],
+    ids=["generator", "zip"],
+)
+def test_is_in_switzerland_bbox_batch_using_iterable(as_iterable):
+    expected = [is_in_switzerland_bbox(cx, cy) for cx, cy in _BATCH_COORDS]
+    assert is_in_switzerland_bbox_batch(as_iterable(_BATCH_COORDS)) == expected
+
+
+def test_is_in_switzerland_bbox_batch_explicit_source_skips_detection(monkeypatch):
+    def _fail(*_args, **_kwargs):
+        raise AssertionError("get_CRS should not run when source is given")
+
+    monkeypatch.setattr("luciole_toolbox.geo.get_CRS", _fail)
+    assert is_in_switzerland_bbox_batch(_BATCH_COORDS, source=CRSType.LV95) == [
+        is_in_switzerland_bbox(cx, cy, source=CRSType.LV95) for cx, cy in _BATCH_COORDS
+    ]

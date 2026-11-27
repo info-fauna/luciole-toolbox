@@ -1,6 +1,6 @@
 import pytest
 
-from luciole_toolbox.geo import get_CKM2
+from luciole_toolbox.geo import CRSType, get_CKM2, get_CKM2_batch
 
 
 def test_get_CKM2_callable():
@@ -106,3 +106,61 @@ def test_get_CKM2_negative_values(cx, cy, expected_CKM2):
 )
 def test_get_CKM2_text(cx, cy):
     assert get_CKM2(cx, cy) is None
+
+
+_BATCH_COORDS = [
+    ("2556080", "1206412"),
+    ("2600123", "1200456"),
+    ("2556080.444", "1206412.44"),
+    ("2 600 000", "1'200'000"),
+    (45.822194, 9.012894),
+    ("12345678", "98765432"),
+    ("-2600000", "1200000"),
+    (None, "1200000"),
+    ("", ""),
+    ("2556080", "1206412"),
+]
+
+
+def test_get_CKM2_batch_empty():
+    assert get_CKM2_batch([]) == []
+
+
+def test_get_CKM2_batch_string_raises():
+    with pytest.raises(TypeError):
+        get_CKM2_batch("2556080, 1206412")
+
+
+@pytest.mark.parametrize("source", [None, *CRSType], ids=["autodetect", "wgs84", "lv03", "lv95"])
+def test_get_CKM2_batch_matches_get_CKM2(source):
+    assert get_CKM2_batch(_BATCH_COORDS, source=source) == [
+        get_CKM2(cx, cy, source=source) for cx, cy in _BATCH_COORDS
+    ]
+
+
+def test_get_CKM2_batch_invalid_source_raises():
+    with pytest.raises(TypeError):
+        get_CKM2_batch([("2556080", "1206412")], source="LV95")
+
+
+@pytest.mark.parametrize(
+    "as_iterable",
+    [
+        lambda pairs: ((cx, cy) for cx, cy in pairs),
+        lambda pairs: zip((p[0] for p in pairs), (p[1] for p in pairs)),
+    ],
+    ids=["generator", "zip"],
+)
+def test_get_CKM2_batch_using_iterable(as_iterable):
+    expected = [get_CKM2(cx, cy) for cx, cy in _BATCH_COORDS]
+    assert get_CKM2_batch(as_iterable(_BATCH_COORDS)) == expected
+
+
+def test_get_CKM2_batch_explicit_source_skips_detection(monkeypatch):
+    def _fail(*_args, **_kwargs):
+        raise AssertionError("get_CRS should not run when source is given")
+
+    monkeypatch.setattr("luciole_toolbox.geo.get_CRS", _fail)
+    assert get_CKM2_batch(_BATCH_COORDS, source=CRSType.LV03) == [
+        get_CKM2(cx, cy, source=CRSType.LV03) for cx, cy in _BATCH_COORDS
+    ]

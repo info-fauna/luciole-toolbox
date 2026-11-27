@@ -7,7 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- Changed the suffix for batch version of exposed function of `geo` module from `_seq` to `_batch`
+
+### Added
 - Add `allowed_buffer_km` in `geo.is_in_switzerland_bbox` to be able to take into account points near the border.
+- Add batch version for all exposed functions of `geo` module
 
 ## [2.0.0] - 2026-10-21
 

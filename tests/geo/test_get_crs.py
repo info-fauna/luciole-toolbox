@@ -1,6 +1,6 @@
 import pytest
 
-from luciole_toolbox.geo import CRSType, get_CRS
+from luciole_toolbox.geo import CRSType, get_CRS, get_CRS_batch
 
 
 def test_get_CRS_callable():
@@ -180,3 +180,44 @@ def test_get_CRS_invalid_input(cx, cy):
 )
 def test_get_CRS_diverse_formats(cx, cy):
     assert get_CRS(cx, cy) == CRSType.WGS84
+
+
+_BATCH_COORDS = [
+    (46.385018, 8.044591),
+    ("8.044591", "46.385018"),
+    ("46° 23′ 06.06″ N", "8° 02′ 40.53″ E"),
+    ("2556080", "1206412"),
+    ("1206412", "2556080"),
+    ("646'614.59", "137'252.17"),
+    (600_000, 646_614.59),
+    (None, "8.044591"),
+    ("", ""),
+    ("impossible", "8.044591"),
+    (46.385018, 8.044591),
+]
+
+
+def test_get_CRS_batch_empty():
+    assert get_CRS_batch([]) == []
+
+
+def test_get_CRS_batch_string_raises():
+    with pytest.raises(TypeError):
+        get_CRS_batch("46.385018, 8.044591")
+
+
+def test_get_CRS_batch_matches_get_CRS():
+    assert get_CRS_batch(_BATCH_COORDS) == [get_CRS(cx, cy) for cx, cy in _BATCH_COORDS]
+
+
+@pytest.mark.parametrize(
+    "as_iterable",
+    [
+        lambda pairs: ((cx, cy) for cx, cy in pairs),
+        lambda pairs: zip((p[0] for p in pairs), (p[1] for p in pairs)),
+    ],
+    ids=["generator", "zip"],
+)
+def test_get_CRS_batch_using_iterable(as_iterable):
+    expected = [get_CRS(cx, cy) for cx, cy in _BATCH_COORDS]
+    assert get_CRS_batch(as_iterable(_BATCH_COORDS)) == expected
