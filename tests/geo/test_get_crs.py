@@ -201,6 +201,11 @@ def test_get_CRS_batch_empty():
     assert get_CRS_batch([]) == []
 
 
+def test_get_CRS_batch_string_raises():
+    with pytest.raises(TypeError):
+        get_CRS_batch("46.385018, 8.044591")
+
+
 def test_get_CRS_batch_matches_get_CRS():
     assert get_CRS_batch(_BATCH_COORDS) == [get_CRS(cx, cy) for cx, cy in _BATCH_COORDS]
 

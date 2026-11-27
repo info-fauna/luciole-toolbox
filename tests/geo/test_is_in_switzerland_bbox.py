@@ -132,6 +132,11 @@ def test_is_in_switzerland_bbox_batch_empty():
     assert is_in_switzerland_bbox_batch([]) == []
 
 
+def test_is_in_switzerland_bbox_batch_string_raises():
+    with pytest.raises(TypeError):
+        is_in_switzerland_bbox_batch("2600000, 1200000")
+
+
 @pytest.mark.parametrize("source", [None, CRSType.LV95], ids=["autodetect", "lv95-source"])
 def test_is_in_switzerland_bbox_batch_matches_scalar(source):
     assert is_in_switzerland_bbox_batch(_BATCH_COORDS, source=source) == [

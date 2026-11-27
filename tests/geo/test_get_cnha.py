@@ -126,6 +126,11 @@ def test_get_CNHA_batch_empty():
     assert get_CNHA_batch([]) == []
 
 
+def test_get_CNHA_batch_string_raises():
+    with pytest.raises(TypeError):
+        get_CNHA_batch("2556080, 1206412")
+
+
 @pytest.mark.parametrize("source", [None, *CRSType], ids=["autodetect", "wgs84", "lv03", "lv95"])
 def test_get_CNHA_batch_matches_get_CNHA(source):
     assert get_CNHA_batch(_BATCH_COORDS, source=source) == [

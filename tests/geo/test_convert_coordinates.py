@@ -335,6 +335,11 @@ def test_convert_coordinates_batch_empty():
     assert convert_coordinates_batch([]) == []
 
 
+def test_convert_coordinates_batch_string_raises():
+    with pytest.raises(TypeError):
+        convert_coordinates_batch("646614.59, 137252.17")
+
+
 def test_convert_coordinates_batch_default_target_matches_scalar():
     assert convert_coordinates_batch(_BATCH_COORDS, source=CRSType.LV03) == [
         convert_coordinates(cx, cy, source=CRSType.LV03) for cx, cy in _BATCH_COORDS
