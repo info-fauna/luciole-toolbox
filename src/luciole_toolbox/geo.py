@@ -307,6 +307,13 @@ def _resolve_coordinate_pair(cx, cy, source=None) -> tuple[CRSType, float, float
         return resolved
 
 
+def _check_sequence_input_type(coords: Sequence, func_name: str):
+    if not isinstance(coords, Sequence):
+        type_name = type(coords).__name__
+        msg = f"The `{func_name}` function expects a sequence for the coordinates, got {type_name}."
+        raise TypeError(msg)
+
+
 @dataclass(frozen=True)
 class GeoPoint:
     """One resolved point, in the CRS it was detected or forced into.
@@ -331,6 +338,10 @@ class GeoPoint:
         The auto-detection is skipped if `source` is given.
         Accepted input is the same as `get_CRS`.
         """
+        if source is not None and not isinstance(source, CRSType):
+            msg = f"The `source` parameter must be a CRSType, got {type(source).__name__}."
+            raise TypeError(msg)
+
         resolved = _resolve_coordinate_pair(cx, cy, source)
         if resolved is None:
             return None
@@ -340,6 +351,10 @@ class GeoPoint:
 
     def to(self, target=CRSType.LV03):
         """Return this point in `target`, rounded to that CRS's conventional precision."""
+        if not isinstance(target, CRSType):
+            msg = f"The `target` parameter must be a CRSType, got {type(target).__name__}."
+            raise TypeError(msg)
+
         if self.crs == target:
             result = self.a, self.b
         else:
@@ -380,6 +395,15 @@ def get_CRS(cx: float, cy: float) -> CRSType | None:
     return point.crs
 
 
+def get_CRS_seq(coords: Sequence[tuple[float, float]]) -> list[CRSType | None]:
+    """
+    Variant of `get_CRS` that operates on a sequence of (cx, cy) pairs. Each pair
+    is fed to the `get_CRS` function, the result keeps the input order and length.
+    """
+    _check_sequence_input_type(coords, "get_CRS_seq")
+    return [get_CRS(cx, cy) for cx, cy in coords]
+
+
 def get_CKM2(cx: float, cy: float, source: CRSType | None = None) -> str | None:
     """Return the 6-digit Swiss kilometre-square grid code (3-digit easting
     + 3-digit northing), officially defined on LV03 coordinates.
@@ -398,6 +422,17 @@ def get_CKM2(cx: float, cy: float, source: CRSType | None = None) -> str | None:
     return point.get_CKM2()
 
 
+def get_CKM2_seq(
+    coords: Sequence[tuple[float, float]], source: CRSType | None = None
+) -> list[str | None]:
+    """
+    Variant of `get_CKM2` that operates on a sequence of (cx, cy) pairs. Each pair
+    is fed to the `get_CKM2` function, the result keeps the input order and length.
+    """
+    _check_sequence_input_type(coords, "get_CKM2_seq")
+    return [get_CKM2(cx, cy, source=source) for cx, cy in coords]
+
+
 def get_CNHA(cx: float, cy: float, source: CRSType | None = None) -> str | None:
     """Return the 8-digit Swiss hectometre-square grid code (4-digit easting
     + 4-digit northing), officially defined on LV03 coordinates.
@@ -414,6 +449,17 @@ def get_CNHA(cx: float, cy: float, source: CRSType | None = None) -> str | None:
         return None
 
     return point.get_CNHA()
+
+
+def get_CNHA_seq(
+    coords: Sequence[tuple[float, float]], source: CRSType | None = None
+) -> list[str | None]:
+    """
+    Variant of `get_CNHA` that operates on a sequence of (cx, cy) pairs. Each pair
+    is fed to the `get_CNHA` function, the result keeps the input order and length.
+    """
+    _check_sequence_input_type(coords, "get_CNHA_seq")
+    return [get_CNHA(cx, cy, source=source) for cx, cy in coords]
 
 
 # Cached per (source, target) pair - building a Transformer parses the grid
@@ -460,11 +506,6 @@ def convert_coordinates(
 
     Values are rounded to 0 decimal for LV03 & LV95, 6 decimals for WGS84.
     """
-    if not isinstance(source, CRSType) and source is not None:
-        raise TypeError(f"Invalid `source` value: {source}")
-    if not isinstance(target, CRSType) and target is not None:
-        raise TypeError(f"Invalid `target` value: {target}")
-
     point = GeoPoint.parse(cx, cy, source=source)
     if point is None:
         return None
@@ -477,34 +518,12 @@ def convert_coordinates_seq(
     target: CRSType = CRSType.LV03,
     source: CRSType | None = None,
 ) -> list[tuple[int | float, int | float] | None]:
-    """Convert each (cx, cy) pair in `coords` to `target` (CRSType.LV03 by default).
-
-    The coordinate system is auto-detected by default. If a pair is unrecognized
-    or the values don't fall within the coordinate system's valid ranges, that
-    entry is None. The result keeps the input order and length.
-    Swapped coordinates are tolerated.
-    The auto-detection is skipped if `source` is given.
-    Accepted input is the same as `get_CRS`.
-
-    Values are rounded to 0 decimal for LV03 & LV95, 6 decimals for WGS84.
     """
-    if not isinstance(source, CRSType) and source is not None:
-        raise TypeError(f"Invalid `source` value: {source}")
-    if not isinstance(target, CRSType) and target is not None:
-        raise TypeError(f"Invalid `target` value: {target}")
-    if not isinstance(coords, Sequence):
-        raise TypeError(f"`coords` must be a sequence, got {type(coords).__name__}.")
-
-    # Parse unique GeoPoints based on a set of unique coords
-    geopoints = {(cx, cy): GeoPoint.parse(cx, cy, source=source) for cx, cy in set(coords)}
-
-    # Convert successfully parsed GeoPoints
-    converted_points = {key: None if p is None else p.to(target) for key, p in geopoints.items()}
-
-    # Arrange converted coords according to the original list
-    results = [converted_points[(cx, cy)] for cx, cy in coords]
-
-    return results
+    Variant of `convert_coordinates` that operates on a sequence of (cx, cy) pairs. Each pair
+    is fed to the `convert_coordinates` function, the result keeps the input order and length.
+    """
+    _check_sequence_input_type(coords, "convert_coordinates_seq")
+    return [convert_coordinates(cx, cy, target=target, source=source) for cx, cy in coords]
 
 
 # Switzerland/Liechtenstein bounding box in LV95 - the same figures
@@ -550,6 +569,21 @@ def is_in_switzerland_bbox(
     north_max += allowed_buffer_km * 1000
 
     return east_min <= easting <= east_max and north_min <= northing <= north_max
+
+
+def is_in_switzerland_bbox_seq(
+    coords: Sequence[tuple[float, float]],
+    allowed_buffer_km: float = 0,
+    source: CRSType | None = None,
+) -> list[bool | None]:
+    """Variant of `is_in_switzerland_bbox` that operates on a sequence of (cx, cy) pairs. Each pair
+    is fed to the `is_in_switzerland_bbox` function, the result keeps the input order and length.
+    """
+    _check_sequence_input_type(coords, "is_in_switzerland_bbox_seq")
+    return [
+        is_in_switzerland_bbox(cx, cy, allowed_buffer_km=allowed_buffer_km, source=source)
+        for cx, cy in coords
+    ]
 
 
 @dataclass(frozen=True)
