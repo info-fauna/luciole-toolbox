@@ -307,7 +307,7 @@ def _resolve_coordinate_pair(cx, cy, source=None) -> tuple[CRSType, float, float
         return resolved
 
 
-def _check_sequence_input_type(coords: Sequence, func_name: str):
+def _check_batchuence_input_type(coords: Sequence, func_name: str):
     if not isinstance(coords, Sequence):
         type_name = type(coords).__name__
         msg = f"The `{func_name}` function expects a sequence for the coordinates, got {type_name}."
@@ -395,12 +395,12 @@ def get_CRS(cx: float, cy: float) -> CRSType | None:
     return point.crs
 
 
-def get_CRS_seq(coords: Sequence[tuple[float, float]]) -> list[CRSType | None]:
+def get_CRS_batch(coords: Sequence[tuple[float, float]]) -> list[CRSType | None]:
     """
     Variant of `get_CRS` that operates on a sequence of (cx, cy) pairs. Each pair
     is fed to the `get_CRS` function, the result keeps the input order and length.
     """
-    _check_sequence_input_type(coords, "get_CRS_seq")
+    _check_batchuence_input_type(coords, "get_CRS_batch")
     return [get_CRS(cx, cy) for cx, cy in coords]
 
 
@@ -422,14 +422,14 @@ def get_CKM2(cx: float, cy: float, source: CRSType | None = None) -> str | None:
     return point.get_CKM2()
 
 
-def get_CKM2_seq(
+def get_CKM2_batch(
     coords: Sequence[tuple[float, float]], source: CRSType | None = None
 ) -> list[str | None]:
     """
     Variant of `get_CKM2` that operates on a sequence of (cx, cy) pairs. Each pair
     is fed to the `get_CKM2` function, the result keeps the input order and length.
     """
-    _check_sequence_input_type(coords, "get_CKM2_seq")
+    _check_batchuence_input_type(coords, "get_CKM2_batch")
     return [get_CKM2(cx, cy, source=source) for cx, cy in coords]
 
 
@@ -451,14 +451,14 @@ def get_CNHA(cx: float, cy: float, source: CRSType | None = None) -> str | None:
     return point.get_CNHA()
 
 
-def get_CNHA_seq(
+def get_CNHA_batch(
     coords: Sequence[tuple[float, float]], source: CRSType | None = None
 ) -> list[str | None]:
     """
     Variant of `get_CNHA` that operates on a sequence of (cx, cy) pairs. Each pair
     is fed to the `get_CNHA` function, the result keeps the input order and length.
     """
-    _check_sequence_input_type(coords, "get_CNHA_seq")
+    _check_batchuence_input_type(coords, "get_CNHA_batch")
     return [get_CNHA(cx, cy, source=source) for cx, cy in coords]
 
 
@@ -513,7 +513,7 @@ def convert_coordinates(
     return point.to(target)
 
 
-def convert_coordinates_seq(
+def convert_coordinates_batch(
     coords: Sequence[tuple[float, float]],
     target: CRSType = CRSType.LV03,
     source: CRSType | None = None,
@@ -522,7 +522,7 @@ def convert_coordinates_seq(
     Variant of `convert_coordinates` that operates on a sequence of (cx, cy) pairs. Each pair
     is fed to the `convert_coordinates` function, the result keeps the input order and length.
     """
-    _check_sequence_input_type(coords, "convert_coordinates_seq")
+    _check_batchuence_input_type(coords, "convert_coordinates_batch")
     return [convert_coordinates(cx, cy, target=target, source=source) for cx, cy in coords]
 
 
@@ -571,7 +571,7 @@ def is_in_switzerland_bbox(
     return east_min <= easting <= east_max and north_min <= northing <= north_max
 
 
-def is_in_switzerland_bbox_seq(
+def is_in_switzerland_bbox_batch(
     coords: Sequence[tuple[float, float]],
     allowed_buffer_km: float = 0,
     source: CRSType | None = None,
@@ -579,7 +579,7 @@ def is_in_switzerland_bbox_seq(
     """Variant of `is_in_switzerland_bbox` that operates on a sequence of (cx, cy) pairs. Each pair
     is fed to the `is_in_switzerland_bbox` function, the result keeps the input order and length.
     """
-    _check_sequence_input_type(coords, "is_in_switzerland_bbox_seq")
+    _check_batchuence_input_type(coords, "is_in_switzerland_bbox_batch")
     return [
         is_in_switzerland_bbox(cx, cy, allowed_buffer_km=allowed_buffer_km, source=source)
         for cx, cy in coords
