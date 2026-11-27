@@ -1,6 +1,6 @@
 import pytest
 
-from luciole_toolbox.geo import CRSType, convert_coordinates
+from luciole_toolbox.geo import CRSType, GeoPoint, convert_coordinates, convert_coordinates_batch
 
 # Bern old observatory: the defining origin of the Swiss projection, so at
 # this exact point the polynomial's auxiliary phi'/lambda' are both 0 and
@@ -311,3 +311,99 @@ def test_convert_coordinates_wgs84_identity_rounds_to_6_decimals():
         46.3850181234, 8.0445911234, target=CRSType.WGS84, source=CRSType.WGS84
     )
     assert result == (46.385018, 8.044591)
+
+
+# Inputs already covered one-by-one above. The batch function is a wrapper,
+# so these only check that a sequence keeps order, length and forwarded arguments.
+_BATCH_COORDS = [
+    (46.427166, 6.101633),
+    (6.113611, 46.481388),
+    (646614.59, 137252.17),
+    (137252.17, 646614.59),
+    (2646614.59, 1137252.17),
+    (2583097.5, 1212273.0),
+    ("646'614.59", "137'252.17"),
+    (497230.717, 142635.171),
+    (420000, 137000),
+    (1.0, 2.0),
+    (None, None),
+    (646614.59, 137252.17),
+]
+
+
+def test_convert_coordinates_batch_empty():
+    assert convert_coordinates_batch([]) == []
+
+
+def test_convert_coordinates_batch_default_target_matches_scalar():
+    coords = [(646614.59, 137252.17), ("646'614.59", "137'252.17"), (1.0, 2.0)]
+    assert convert_coordinates_batch(coords, source=CRSType.LV03) == [
+        convert_coordinates(cx, cy, source=CRSType.LV03) for cx, cy in coords
+    ]
+
+
+def test_convert_coordinates_batch_invalid_source_raises():
+    with pytest.raises(TypeError):
+        convert_coordinates_batch([(646614.59, 137252.17)], source="WGS844")
+
+
+def test_convert_coordinates_batch_invalid_target_raises():
+    with pytest.raises(TypeError):
+        convert_coordinates_batch([(646614.59, 137252.17)], target="not-a-crs")
+
+
+@pytest.mark.parametrize(
+    "coords",
+    [
+        zip([646614.59, 600072.37], [137252.17, 200147.07]),
+        ((646614.59, 137252.17) for _ in range(2)),
+    ],
+    ids=["zip", "generator"],
+)
+def test_convert_coordinates_batch_one_shot_iterable_raises(coords):
+    with pytest.raises(TypeError):
+        convert_coordinates_batch(coords, source=CRSType.LV03)
+
+
+def test_convert_coordinates_batch_explicit_source_skips_detection(monkeypatch):
+    def _fail(*_args, **_kwargs):
+        raise AssertionError("get_CRS should not run when source is given")
+
+    monkeypatch.setattr("luciole_toolbox.geo.get_CRS", _fail)
+    coords = [(646614.59, 137252.17), (1.0, 2.0)]
+    assert convert_coordinates_batch(coords, target=CRSType.LV03, source=CRSType.LV03) == [
+        convert_coordinates(cx, cy, target=CRSType.LV03, source=CRSType.LV03) for cx, cy in coords
+    ]
+
+
+def test_convert_coordinates_batch_detects_each_pair_when_source_omitted(monkeypatch):
+    coords = [(646614.59, 137252.17), (600072.37, 200147.07), (1.0, 2.0)]
+    expected = [convert_coordinates(cx, cy, target=CRSType.LV03) for cx, cy in coords]
+
+    calls = {"n": 0}
+    real = GeoPoint.parse.__func__
+
+    def _wrapped(cls, cx, cy, source=None):
+        calls["n"] += 1
+        return real(cls, cx, cy, source=source)
+
+    monkeypatch.setattr(GeoPoint, "parse", classmethod(_wrapped))
+    result = convert_coordinates_batch(coords, target=CRSType.LV03)
+    assert calls["n"] == len(coords)
+    assert result == expected
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("target", list(CRSType))
+def test_convert_coordinates_batch_matches_convert_coordinates(target):
+    assert convert_coordinates_batch(_BATCH_COORDS, target=target) == [
+        convert_coordinates(cx, cy, target=target) for cx, cy in _BATCH_COORDS
+    ]
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("source", list(CRSType))
+def test_convert_coordinates_batch_explicit_source_matches_scalar(source):
+    assert convert_coordinates_batch(_BATCH_COORDS, target=CRSType.LV03, source=source) == [
+        convert_coordinates(cx, cy, target=CRSType.LV03, source=source) for cx, cy in _BATCH_COORDS
+    ]

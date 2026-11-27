@@ -1,6 +1,6 @@
 import pytest
 
-from luciole_toolbox.geo import get_CKM2
+from luciole_toolbox.geo import CRSType, get_CKM2, get_CKM2_batch
 
 
 def test_get_CKM2_callable():
@@ -106,3 +106,55 @@ def test_get_CKM2_negative_values(cx, cy, expected_CKM2):
 )
 def test_get_CKM2_text(cx, cy):
     assert get_CKM2(cx, cy) is None
+
+
+def test_get_CKM2_batch_empty():
+    assert get_CKM2_batch([]) == []
+
+
+@pytest.mark.parametrize("source", [None, *CRSType], ids=["autodetect", "wgs84", "lv03", "lv95"])
+def test_get_CKM2_batch_matches_get_CKM2(source):
+    coords = [
+        ("2556080", "1206412"),
+        ("2600123", "1200456"),
+        ("2556080.444", "1206412.44"),
+        ("2 600 000", "1'200'000"),
+        (45.822194, 9.012894),
+        ("12345678", "98765432"),
+        ("-2600000", "1200000"),
+        (None, "1200000"),
+        ("", ""),
+        ("2556080", "1206412"),
+    ]
+    assert get_CKM2_batch(coords, source=source) == [
+        get_CKM2(cx, cy, source=source) for cx, cy in coords
+    ]
+
+
+def test_get_CKM2_batch_invalid_source_raises():
+    with pytest.raises(TypeError):
+        get_CKM2_batch([("2556080", "1206412")], source="LV95")
+
+
+@pytest.mark.parametrize(
+    "coords",
+    [
+        zip([2556080], [1206412]),
+        ((2556080, 1206412) for _ in range(1)),
+    ],
+    ids=["zip", "generator"],
+)
+def test_get_CKM2_batch_one_shot_iterable_raises(coords):
+    with pytest.raises(TypeError):
+        get_CKM2_batch(coords)
+
+
+def test_get_CKM2_batch_explicit_source_skips_detection(monkeypatch):
+    def _fail(*_args, **_kwargs):
+        raise AssertionError("get_CRS should not run when source is given")
+
+    monkeypatch.setattr("luciole_toolbox.geo.get_CRS", _fail)
+    coords = [(646614.59, 137252.17), (1.0, 2.0)]
+    assert get_CKM2_batch(coords, source=CRSType.LV03) == [
+        get_CKM2(cx, cy, source=CRSType.LV03) for cx, cy in coords
+    ]
